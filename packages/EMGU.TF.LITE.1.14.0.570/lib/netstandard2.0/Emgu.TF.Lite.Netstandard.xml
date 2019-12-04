@@ -1,0 +1,622 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Emgu.TF.Lite.Netstandard</name>
+    </assembly>
+    <members>
+        <member name="T:Emgu.TF.Lite.AllocationType">
+            <summary>
+            Memory allocation strategies.
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.AllocationType.MemNone">
+            <summary>
+            None
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.AllocationType.MmapRo">
+            <summary>
+             Read-only memory-mapped data (or data externally allocated).
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.AllocationType.ArenaRw">
+            <summary>
+            Arena allocated data
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.AllocationType.ArenaRwPersistent">
+            <summary>
+            Arena allocated persistent data
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.AllocationType.Dynamic">
+            <summary>
+            Tensors that are allocated during evaluation
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.BuildinOpResolver">
+            <summary>
+            The default tensor flow lite buildin op resolver.
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.BuildinOpResolver.#ctor">
+            <summary>
+            Create a default buildin op resolver.
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.BuildinOpResolver.DisposeObject">
+            <summary>
+            Release all the unmanaged memory associated with this model
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.TfLiteInvoke">
+            <summary>
+            Class that provide access to native tensorflow lite functions
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.TfLiteInvoke.GetNativeType(Emgu.TF.Lite.DataType)">
+            <summary>
+            Get the equivalent native type from Tensorflow DataType
+            </summary>
+            <param name="dataType">The tensorflow DataType</param>
+            <returns>The equivalent native type</returns>
+        </member>
+        <member name="T:Emgu.TF.Lite.TfLiteInvoke.TfliteErrorCallback">
+            <summary>
+            Define the functional interface for the error callback
+            </summary>
+            <param name="status">The status code</param>
+            <param name="errMsg">The pointer to the error message</param>
+            <returns></returns>
+        </member>
+        <member name="M:Emgu.TF.Lite.TfLiteInvoke.RedirectError(Emgu.TF.Lite.TfLiteInvoke.TfliteErrorCallback)">
+            <summary>
+            Redirect tensorflow lite error.
+            </summary>
+            <param name="errorHandler">The error handler</param>
+        </member>
+        <member name="M:Emgu.TF.Lite.TfLiteInvoke.CheckLibraryLoaded">
+            <summary>
+            Check to make sure all the unmanaged libraries are loaded
+            </summary>
+            <returns>True if library loaded</returns>
+        </member>
+        <member name="F:Emgu.TF.Lite.TfLiteInvoke.TFCallingConvention">
+            <summary>
+            The Tensorflow native api calling convention
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.TfLiteInvoke.StringMarshalType">
+            <summary>
+            The string marshal type
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.TfLiteInvoke.BoolMarshalType">
+            <summary>
+            Represent a bool value in C++
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.TfLiteInvoke.BoolToIntMarshalType">
+            <summary>
+            Represent a int value in C++
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.TfLiteInvoke.LoadUnmanagedModules(System.String,System.String[])">
+            <summary>
+            Attempts to load tensorflow modules from the specific location
+            </summary>
+            <param name="loadDirectory">The directory where the unmanaged modules will be loaded. If it is null, the default location will be used.</param>
+            <param name="unmanagedModules">The names of tensorflow modules. </param>
+            <returns>True if all the modules has been loaded successfully</returns>
+            <remarks>If <paramref name="loadDirectory"/> is null, the default location on windows is the dll's path appended by either "x64" or "x86", depends on the applications current mode.</remarks>
+        </member>
+        <member name="M:Emgu.TF.Lite.TfLiteInvoke.GetModuleFormatString">
+            <summary>
+            Get the module format string.
+            </summary>
+            <returns>On Windows, "{0}".dll will be returned; On Linux, "lib{0}.so" will be returned; Otherwise {0} is returned.</returns>
+        </member>
+        <member name="M:Emgu.TF.Lite.TfLiteInvoke.DefaultLoadUnmanagedModules(System.String[])">
+            <summary>
+            Attempts to load tensorflow modules from the specific location
+            </summary>
+            <param name="modules">The names of tensorflow modules.</param>
+            <returns>True if all the modules has been loaded successfully</returns>
+        </member>
+        <member name="M:Emgu.TF.Lite.TfLiteInvoke.#cctor">
+            <summary>
+            Static Constructor to setup tensorflow environment
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.TfLiteInvoke.TfliteErrorHandlerThrowException">
+            <summary>
+            The default error handler for tensorflow lite
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.TfLiteInvoke.Version">
+            <summary>
+            Get the tensorflow lite version.
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.TfLiteInvoke.ExternLibrary">
+            <summary>
+            The file name of the tfliteextern library
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.TfLiteInvoke.TensorflowModuleList">
+            <summary>
+            The List of the tensorflow lite modules
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.DataType">
+            <summary>
+            Types supported by tensor
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.DataType.NoType">
+            <summary>
+            No type
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.DataType.Float32">
+            <summary>
+            single precision float
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.DataType.Int32">
+            <summary>
+            Int32
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.DataType.UInt8">
+            <summary>
+            UInt8
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.DataType.Int64">
+            <summary>
+            Int64
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.DataType.String">
+            <summary>
+            String
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.DataType.Bool">
+            <summary>
+            Bool
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.DataType.Int16">
+            <summary>
+            Bool
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.DataType.Complex64">
+            <summary>
+            Complex64
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.DynamicBuffer">
+            <summary>
+            DynamicBuffer holds temporary buffer that will be used to create a dynamic tensor. 
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.DynamicBuffer.#ctor">
+            <summary>
+            Create a new dynamic buffer.
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.DynamicBuffer.AddString(System.String)">
+            <summary>
+            Add string to dynamic buffer by resizing the buffer and copying the data.
+            </summary>
+            <param name="str">The string to add to the dynamic buffer</param>
+        </member>
+        <member name="M:Emgu.TF.Lite.DynamicBuffer.WriteToTensor(Emgu.TF.Lite.Tensor,Emgu.TF.Lite.IntArray)">
+            <summary>
+            Fill content into a string tensor.
+            </summary>
+            <param name="tensor">The string tensor</param>
+        </member>
+        <member name="M:Emgu.TF.Lite.DynamicBuffer.DisposeObject">
+            <summary>
+            Release all the unmanaged memory associated with this model
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.FlatBufferModel">
+            <summary>
+            An RAII object that represents a read-only tflite model, copied from disk,
+            or mmapped. This uses flatbuffers as the serialization format.
+            </summary>   
+        </member>
+        <member name="M:Emgu.TF.Lite.FlatBufferModel.#ctor(System.String)">
+            <summary>
+            Builds a model based on a file.
+            </summary>   
+            <param name="filename">The name of the file where the FlatBufferModel will be loaded from.</param>
+        </member>
+        <member name="M:Emgu.TF.Lite.FlatBufferModel.#ctor(System.Byte[])">
+            <summary>
+            Builds a model based on a pre-loaded flatbuffer.
+            </summary>   
+            <param name="buffer">The buffer where the FlatBufferModel will be loaded from.</param>
+        </member>
+        <member name="P:Emgu.TF.Lite.FlatBufferModel.Initialized">
+            <summary>
+            Returns true if the model is initialized
+            </summary>   
+        </member>
+        <member name="M:Emgu.TF.Lite.FlatBufferModel.CheckModelIdentifier">
+            <summary>
+            Check if the model identifier is correct.
+            </summary>
+            <returns>
+            True if the model identifier is correct (otherwise false and
+            reports an error).
+            </returns>
+        </member>
+        <member name="M:Emgu.TF.Lite.FlatBufferModel.DisposeObject">
+            <summary>
+            Release all the unmanaged memory associated with this model
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.IDelegate">
+            <summary>
+            Abstract interface that returns a pointer to the delegate
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.IDelegate.DelegatePtr">
+            <summary>
+            Pointer to the native Delegate object.
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.IntArray">
+            <summary>
+            A tensorflow integer array
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.IntArray.#ctor(System.Int32)">
+            <summary>
+            Create an int array of the given size
+            </summary>
+            <param name="size">The size of the IntArray</param>
+        </member>
+        <member name="P:Emgu.TF.Lite.IntArray.Data">
+            <summary>
+            Get a copy of the data in this integer array
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.IntArray.DisposeObject">
+            <summary>
+            Release all the unmanaged memory associated with this IntArray
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.Interpreter">
+            <summary>
+            The tensorflow lite interpreter.
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Interpreter.#ctor(Emgu.TF.Lite.FlatBufferModel,Emgu.TF.Lite.IOpResolver)">
+            <summary>
+            Create an interpreter from a flatbuffer model
+            </summary>
+            <param name="flatBufferModel">The flat buffer model.</param>
+            <param name="resolver">An instance that implements the Resolver interface which maps custom op names and builtin op codes to op registrations.</param>
+        </member>
+        <member name="M:Emgu.TF.Lite.Interpreter.AllocateTensors">
+            <summary>
+            Update allocations for all tensors. This will redim dependent tensors using
+            the input tensor dimensionality as given. This is relatively expensive.
+            If you know that your sizes are not changing, you need not call this.
+            </summary>
+            <returns>Status of success or failure.</returns>
+        </member>
+        <member name="M:Emgu.TF.Lite.Interpreter.Invoke">
+            <summary>
+            Invoke the interpreter (run the whole graph in dependency order).
+            </summary>
+            <returns>Status of success or failure.</returns>
+            <remarks>It is possible that the interpreter is not in a ready state
+            to evaluate (i.e. if a ResizeTensor() has been performed without an
+            AllocateTensors().
+            </remarks>
+        </member>
+        <member name="P:Emgu.TF.Lite.Interpreter.TensorSize">
+            <summary>
+            Get the number of tensors in the model.
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Interpreter.NodeSize">
+            <summary>
+            Get the number of ops in the model.
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Interpreter.GetTensor(System.Int32)">
+            <summary>
+            Get a tensor data structure.
+            </summary>
+            <param name="index">The index of the tensor</param>
+            <returns>The tensor in the specific index</returns>
+        </member>
+        <member name="P:Emgu.TF.Lite.Interpreter.Inputs">
+            <summary>
+            Get an array of all the input tensors
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Interpreter.Outputs">
+            <summary>
+            Get an array of all the output tensors
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Interpreter.InputIndices">
+            <summary>
+            Get the list of tensor index of the inputs tensors.
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Interpreter.OutputIndices">
+            <summary>
+            Get the list of tensor index of the outputs tensors.
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Interpreter.UseNNAPI(System.Boolean)">
+            <summary>
+            Enable or disable the NN API (Android Neural Network API)
+            </summary>
+            <param name="enable">If true, enable the NN API (Android Neural Network API). If false, disable it.</param>
+        </member>
+        <member name="M:Emgu.TF.Lite.Interpreter.SetNumThreads(System.Int32)">
+            <summary>
+            Set the number of threads available to the interpreter.
+            </summary>
+            <param name="numThreads">The number of threads</param>
+        </member>
+        <member name="M:Emgu.TF.Lite.Interpreter.DisposeObject">
+            <summary>
+            Release all the unmanaged memory associated with this interpreter
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Interpreter.ModifyGraphWithDelegate(Emgu.TF.Lite.IDelegate)">
+            <summary>
+            Allow a delegate to look at the graph and modify the graph to handle
+            parts of the graph themselves. After this is called, the graph may
+            contain new nodes that replace 1 more nodes.
+            WARNING: This is an experimental API and subject to change.
+            </summary>
+            <param name="tfDelegate">The delegate</param>
+            <returns>The status</returns>
+        </member>
+        <member name="T:Emgu.TF.Lite.IOpResolver">
+            <summary>
+            Abstract interface that returns TfLiteRegistrations given op codes or custom
+            op names. This is the mechanism that ops being referenced in the flatbuffer
+            model are mapped to executable function pointers (TfLiteRegistrations)
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.IOpResolver.OpResolverPtr">
+            <summary>
+            Pointer to the native OpResolver object.
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.Status">
+            <summary>
+            Tensorflow lite status
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.Status.Ok">
+            <summary>
+            Ok
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.Status.Error">
+            <summary>
+            Error
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.Complex64">
+            <summary>
+            Complex number
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.Complex64.Re">
+            <summary>
+            Real
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.Complex64.Im">
+            <summary>
+            Imaginary
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.QuantizationParams">
+            <summary>
+            Parameters for asymmetric quantization.
+            </summary>
+            <remarks>
+            Quantized values can be converted back to float using:
+               real_value = scale * (quantized_value - zero_point);
+            </remarks>
+        </member>
+        <member name="F:Emgu.TF.Lite.QuantizationParams.Scale">
+            <summary>
+            The scale
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.QuantizationParams.ZeroPoint">
+            <summary>
+            The zero point
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.Tensor">
+            <summary>
+            A tensorflow lite tensor
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Tensor.#ctor(System.IntPtr,System.Boolean)">
+            <summary>
+            Create a Tensor from the native tensorflow lite tensor pointer
+            </summary>
+            <param name="ptr">A native tensorflow lite tensor pointer</param>
+            <param name="needDispose">If true, we need to dispose the tensor upon object disposal. If false, we assume the tensor will be freed by the parent object.</param>
+        </member>
+        <member name="P:Emgu.TF.Lite.Tensor.Type">
+            <summary>
+            The data type specification for data stored in `data`. This affects
+            what member of `data` union should be used.
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Tensor.DataPointer">
+            <summary>
+            A raw data pointers. 
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Tensor.QuantizationParams">
+            <summary>
+            Quantization information.
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Tensor.AllocationType">
+            <summary>
+            How memory is mapped
+             kTfLiteMmapRo: Memory mapped read only.
+             i.e. weights
+             kTfLiteArenaRw: Arena allocated read write memory
+             (i.e. temporaries, outputs).
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Tensor.ByteSize">
+            <summary>
+            The number of bytes required to store the data of this Tensor. I.e.
+            (bytes of each element) * dims[0] * ... * dims[n-1].  For example, if
+            type is kTfLiteFloat32 and dims = {3, 2} then
+            bytes = sizeof(float) * 3 * 2 = 4 * 3 * 2 = 24.
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Tensor.Name">
+            <summary>
+            Name of this tensor.
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Tensor.Data">
+            <summary>
+            Get a copy of the tensor data as a managed array
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Tensor.JaggedData">
+            <summary>
+            Get the tensor data as a jagged array
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Tensor.GetData(System.Boolean)">
+            <summary>
+            Get a copy of the tensor data as a managed array
+            </summary>
+            <param name="jagged">If true, return the data as a jagged array. Otherwise, return a single dimension array.</param>
+            <returns>A copy of the tensor data as a managed array</returns>
+        </member>
+        <member name="P:Emgu.TF.Lite.Tensor.Dims">
+            <summary>
+            Get the size of the dimensions of the tensor
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Tensor.DisposeObject">
+            <summary>
+            Release all the unmanaged memory associated with this model
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Util.DisposableObject">
+            <summary>
+            An abstract class that wrap around a disposable object
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Util.DisposableObject._disposed">
+            <summary> Track whether Dispose has been called. </summary>
+        </member>
+        <member name="M:Emgu.TF.Util.DisposableObject.Dispose">
+            <summary>
+            The dispose function that implements IDisposable interface
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Util.DisposableObject.Dispose(System.Boolean)">
+            <summary> 
+             Dispose(bool disposing) executes in two distinct scenarios.
+             If disposing equals true, the method has been called directly
+             or indirectly by a user's code. Managed and unmanaged resources
+             can be disposed.
+             If disposing equals false, the method has been called by the
+             runtime from inside the finalizer and you should not reference
+             other objects. Only unmanaged resources can be disposed.
+            </summary>
+             <param name="disposing">
+             If disposing equals false, the method has been called by the
+             runtime from inside the finalizer and you should not reference
+             other objects. Only unmanaged resources can be disposed.
+             </param>
+        </member>
+        <member name="M:Emgu.TF.Util.DisposableObject.ReleaseManagedResources">
+            <summary>
+            Release the managed resources. This function will be called during the disposal of the current object.
+            override ride this function if you need to call the Dispose() function on any managed IDisposable object created by the current object
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Util.DisposableObject.DisposeObject">
+            <summary>
+            Release the unmanaged resources
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Util.DisposableObject.Finalize">
+            <summary>
+            Destructor
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Util.Toolbox">
+            <summary>
+            utilities functions for Emgu
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Util.Toolbox.LoadLibrary(System.String)">
+            <summary>
+            Maps the specified executable module into the address space of the calling process.
+            </summary>
+            <param name="dllname">The name of the dll</param>
+            <returns>The handle to the library</returns>
+        </member>
+        <member name="M:Emgu.TF.Util.Toolbox.FreeLibrary(System.IntPtr)">
+            <summary>
+            Decrements the reference count of the loaded dynamic-link library (DLL). When the reference count reaches zero, the module is unmapped from the address space of the calling process and the handle is no longer valid
+            </summary>
+            <param name="handle">The handle to the library</param>
+            <returns>If the function succeeds, the return value is true. If the function fails, the return value is false.</returns>
+        </member>
+        <member name="M:Emgu.TF.Util.Toolbox.SetDllDirectory(System.String)">
+            <summary>
+            Adds a directory to the search path used to locate DLLs for the application
+            </summary>
+            <param name="path">The directory to be searched for DLLs</param>
+            <returns>True if success</returns>
+        </member>
+        <member name="T:Emgu.TF.Util.UnmanagedObject">
+            <summary>
+            An Unmanaged Object is a disposable object with a Ptr property pointing to the unmanaged object
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Util.UnmanagedObject._ptr">
+            <summary>
+            A pointer to the unmanaged object
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Util.UnmanagedObject.Ptr">
+            <summary>
+            Pointer to the unmanaged object
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Util.UnmanagedObject.op_Implicit(Emgu.TF.Util.UnmanagedObject)~System.IntPtr">
+            <summary>
+            Implicit operator for IntPtr
+            </summary>
+            <param name="obj">The UnmanagedObject</param>
+            <returns>The unmanaged pointer for this object</returns>
+        </member>
+    </members>
+</doc>

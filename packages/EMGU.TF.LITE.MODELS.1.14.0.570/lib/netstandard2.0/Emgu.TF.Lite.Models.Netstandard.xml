@@ -1,0 +1,339 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Emgu.TF.Lite.Models.Netstandard</name>
+    </assembly>
+    <members>
+        <member name="M:Emgu.TF.Lite.Models.CocoSsdMobilenet.Recognize(System.String,System.Single)">
+            <summary>
+            Perform Coco Ssd Mobilenet detection
+            </summary>
+            <param name="imageFile">The image file where we will ran the network through</param>
+            <param name="scoreThreshold">If non-positive, will return all results. If positive, we will only return results with score larger than this value</param>
+            <returns>The result of the detection.</returns>
+        </member>
+        <member name="F:Emgu.TF.Lite.Models.CocoSsdMobilenet.RecognitionResult.Rectangle">
+            <summary>
+            Rectangles will be in the format of (x, y, width, height) in the original image coordinate
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.Models.CocoSsdMobilenet.RecognitionResult.Label">
+            <summary>
+            The object label
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.Models.CocoSsdMobilenet.RecognitionResult.Score">
+            <summary>
+            The score of the matching
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.Models.CocoSsdMobilenet.RecognitionResult.Class">
+            <summary>
+            The class index
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.Models.Inception">
+            <summary>
+            The inception model for object class labeling 
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Inception.#ctor">
+            <summary>
+            Create a Inception model for object labeling.
+            </summary>
+        </member>
+        <member name="E:Emgu.TF.Lite.Models.Inception.OnDownloadProgressChanged">
+            <summary>
+            Callback when the download progress has been changed.
+            </summary>
+        </member>
+        <member name="E:Emgu.TF.Lite.Models.Inception.OnDownloadCompleted">
+            <summary>
+            Callback when the download is completed.
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Inception.Init(System.String[],System.String)">
+            <summary>
+            Initialize the graph by downloading the model from the Internet
+            </summary>
+            <param name="modelFiles">The model file names as an array. First one is the ".tflite" file and the second one should be the label names.</param>
+            <param name="downloadUrl">The url where the files can be downloaded from.</param>
+        </member>
+        <member name="P:Emgu.TF.Lite.Models.Inception.Imported">
+            <summary>
+            Return true if the graph has been imported
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Models.Inception.Interpreter">
+            <summary>
+            Get the interpreter for this graph
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Models.Inception.Labels">
+            <summary>
+            Get the labels
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Inception.SortResults(System.Single[])">
+            <summary>
+            Sort the result from the most likely to the less likely
+            </summary>
+            <param name="probabilities">The probability for the classes, this should be the values of the output tensor</param>
+            <returns>The recognition result, sorted by likelihood.</returns>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Inception.Recognize(System.String,System.Int32,System.Int32,System.Single,System.Single,System.Boolean,System.Boolean)">
+            <summary>
+            Load the file, ran it through the mobile net graph and return the recognition results
+            </summary>
+            <param name="imageFile">The image to be loaded</param>
+            <param name="width">The width of the input tensor</param>
+            <param name="height">The height of the input tensor</param>
+            <param name="mean">The mean to be subtracted when converting the image to input tensor</param>
+            <param name="scale">The scale to be multiplied when converting the image to input tensor</param>
+            <param name="flipUpsideDown">If true, the image will be flipped upside down when it is coverted to input tensor</param>
+            <param name="swapBR">If true, the blue and red channel will be swapped when converting the image to input tensor </param>
+            <returns>The recognition result sorted by probability</returns>
+        </member>
+        <member name="T:Emgu.TF.Lite.Models.Inception.RecognitionResult">
+            <summary>
+            The result of the class labeling
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Inception.RecognitionResult.#ctor(System.String,System.Double)">
+            <summary>
+            Create a recognition result by providing the label and the probability
+            </summary>
+            <param name="label">The label</param>
+            <param name="probability">The probability</param>
+        </member>
+        <member name="F:Emgu.TF.Lite.Models.Inception.RecognitionResult.Label">
+            <summary>
+            The label
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.Models.Inception.RecognitionResult.Probability">
+            <summary>
+            The probability
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Inception.DisposeObject">
+            <summary>
+            Release all the unmanaged memory associated with this graph
+            </summary>
+        </member>
+        <member name="T:Emgu.TF.Lite.Models.Mobilenet">
+            <summary>
+            The mobile net model for object class labeling 
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Mobilenet.#ctor">
+            <summary>
+            Create a Mobilenet for object labeling.
+            </summary>
+        </member>
+        <member name="E:Emgu.TF.Lite.Models.Mobilenet.OnDownloadProgressChanged">
+            <summary>
+            Callback when the download progress has been changed.
+            </summary>
+        </member>
+        <member name="E:Emgu.TF.Lite.Models.Mobilenet.OnDownloadCompleted">
+            <summary>
+            Callback when the download is completed.
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Mobilenet.Init(System.String[],System.String)">
+            <summary>
+            Initialize the graph by downloading the model from the internet
+            </summary>
+            <param name="modelFiles">The model file names as an array. First one is the ".tflite" file and the second one should be the label names.</param>
+            <param name="downloadUrl">The url where the files can be downloaded from.</param>
+        </member>
+        <member name="P:Emgu.TF.Lite.Models.Mobilenet.Imported">
+            <summary>
+            Return true if the graph has been imported
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Models.Mobilenet.Interpreter">
+            <summary>
+            Get the interpreter for this graph
+            </summary>
+        </member>
+        <member name="P:Emgu.TF.Lite.Models.Mobilenet.Labels">
+            <summary>
+            Get the labels
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Mobilenet.SortResults(System.Single[])">
+            <summary>
+            Sort the result from the most likely to the less likely
+            </summary>
+            <param name="probabilities">The probability for the classes, this should be the values of the output tensor</param>
+            <returns>The recognition result, sorted by likelihood.</returns>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Mobilenet.Recognize(System.String)">
+            <summary>
+            Load the file, ran it through the mobile net graph and return the recognition results
+            </summary>
+            <param name="imageFile">The image to be loaded</param>
+            <returns>The recognition result sorted by probability</returns>
+        </member>
+        <member name="T:Emgu.TF.Lite.Models.Mobilenet.RecognitionResult">
+            <summary>
+            The result of the class labeling
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Mobilenet.RecognitionResult.#ctor(System.String,System.Double)">
+            <summary>
+            Create a recognition result by providing the label and the probability
+            </summary>
+            <param name="label">The label</param>
+            <param name="probability">The probability</param>
+        </member>
+        <member name="F:Emgu.TF.Lite.Models.Mobilenet.RecognitionResult.Label">
+            <summary>
+            The label
+            </summary>
+        </member>
+        <member name="F:Emgu.TF.Lite.Models.Mobilenet.RecognitionResult.Probability">
+            <summary>
+            The probability
+            </summary>
+        </member>
+        <member name="M:Emgu.TF.Lite.Models.Mobilenet.DisposeObject">
+            <summary>
+            Release all the unmanaged memory associated with this graph
+            </summary>
+        </member>
+        <member name="T:Emgu.Models.DownloadableFile">
+            <summary>
+            This represent a file that can be downloaded from the internet
+            </summary>
+        </member>
+        <member name="M:Emgu.Models.DownloadableFile.#ctor(System.String)">
+            <summary>
+            Create a downloadable file from the url
+            </summary>
+            <param name="url">The url where the file can be downloaded from</param>
+        </member>
+        <member name="P:Emgu.Models.DownloadableFile.Url">
+            <summary>
+            The url where this file can be downloaded from
+            </summary>
+        </member>
+        <member name="P:Emgu.Models.DownloadableFile.LocalFile">
+            <summary>
+            The local file name
+            </summary>
+        </member>
+        <member name="M:Emgu.Models.DownloadableFile.GetLocalFileName(System.String)">
+            <summary>
+            The local path to the local file given the file name
+            </summary>
+            <param name="fileName">The name of the file</param>
+            <returns>The local path of the file</returns>
+        </member>
+        <member name="T:Emgu.Models.FileDownloadManager">
+            <summary>
+            Use to download files (e.g. models) from the internet
+            </summary>
+        </member>
+        <member name="M:Emgu.Models.FileDownloadManager.#ctor">
+            <summary>
+            Create a file download manager
+            </summary>
+        </member>
+        <member name="E:Emgu.Models.FileDownloadManager.OnDownloadProgressChanged">
+            <summary>
+            This event will be fired when the download progress is changed
+            </summary>
+        </member>
+        <member name="E:Emgu.Models.FileDownloadManager.OnDownloadCompleted">
+            <summary>
+            This event will be fired when the download is completed
+            </summary>
+        </member>
+        <member name="M:Emgu.Models.FileDownloadManager.Clear">
+            <summary>
+            Clear the list of files
+            </summary>
+        </member>
+        <member name="M:Emgu.Models.FileDownloadManager.AddFile(System.String)">
+            <summary>
+            Add a file to download
+            </summary>
+            <param name="url">The url of the file to be downloaded</param>
+        </member>
+        <member name="T:Emgu.Models.NativeImageIO">
+            <summary>
+            Platform specific implementation of Image IO
+            </summary>
+        </member>
+        <member name="T:Emgu.Models.NativeImageIO.Annotation">
+            <summary>
+            Image annotation
+            </summary>
+        </member>
+        <member name="F:Emgu.Models.NativeImageIO.Annotation.Rectangle">
+            <summary>
+            The coordinates of the rectangle, the values are in the range of [0, 1], each rectangle contains 4 values, corresponding to the top left corner (x0, y0) and bottom right corner (x1, y1)
+            </summary>
+        </member>
+        <member name="F:Emgu.Models.NativeImageIO.Annotation.Label">
+            <summary>
+            The text to be drawn on the top left corner of the Rectangle
+            </summary>
+        </member>
+        <member name="M:Emgu.Models.NativeImageIO.ReadImageFileToTensor``1(System.String,System.IntPtr,System.Int32,System.Int32,System.Single,System.Single,System.Boolean,System.Boolean)">
+            <summary>
+            Read an image file, covert the data and save it to the native pointer
+            </summary>
+            <typeparam name="T">The type of the data to covert the image pixel values to. e.g. "float" or "byte"</typeparam>
+            <param name="fileName">The name of the image file</param>
+            <param name="dest">The native pointer where the image pixels values will be saved to.</param>
+            <param name="inputHeight">The height of the image, must match the height requirement for the tensor</param>
+            <param name="inputWidth">The width of the image, must match the width requirement for the tensor</param>
+            <param name="inputMean">The mean value, it will be substracted from the input image pixel values</param>
+            <param name="scale">The scale, after mean is substracted, the scale will be used to multiply the pixel values</param>
+            <param name="flipUpSideDown">If true, the image needs to be flipped up side down</param>
+            <param name="swapBR">If true, will flip the Blue channel with the Red. e.g. If false, the tensor's color channel order will be RGB. If true, the tensor's color channle order will be BGR </param>
+        </member>
+        <member name="M:Emgu.Models.NativeImageIO.PixelToJpeg(System.Byte[],System.Int32,System.Int32,System.Int32)">
+            <summary>
+            Converting raw pixel data to jpeg stream
+            </summary>
+            <param name="rawPixel">The raw pixel data</param>
+            <param name="width">The width of the image</param>
+            <param name="height">The height of the image</param>
+            <param name="channels">The number of channels</param>
+            <returns>The jpeg stream</returns>
+        </member>
+        <member name="T:Emgu.Models.NativeImageIO.JpegData">
+            <summary>
+            The Jpeg Data
+            </summary>
+        </member>
+        <member name="P:Emgu.Models.NativeImageIO.JpegData.Width">
+            <summary>
+            The width of the image
+            </summary>
+        </member>
+        <member name="P:Emgu.Models.NativeImageIO.JpegData.Height">
+            <summary>
+            The height of the image
+            </summary>
+        </member>
+        <member name="P:Emgu.Models.NativeImageIO.JpegData.Raw">
+            <summary>
+            The raw jpeg data
+            </summary>
+        </member>
+        <member name="M:Emgu.Models.NativeImageIO.ImageFileToJpeg(System.String,Emgu.Models.NativeImageIO.Annotation[])">
+            <summary>
+            Read the file and draw rectangles on it.
+            </summary>
+            <param name="fileName">The name of the file.</param>
+            <param name="annotations">Annotations to be add to the image. Can consist of rectangles and labels</param>
+            <returns>The image in Jpeg stream format</returns>
+        </member>
+    </members>
+</doc>
