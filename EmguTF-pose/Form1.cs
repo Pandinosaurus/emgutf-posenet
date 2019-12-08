@@ -1,20 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.ServiceModel;
-using System.Threading;
 using System.Windows.Forms;
-using Emgu.TF.Lite; // Interpreter, flatbuffer
-using Emgu.TF.Util;
-using Emgu.CV; //VideoCapture, Mat
-using Emgu.CV.Util; 
+using Emgu.CV; //VideoCapture, Mat 
 using Emgu.CV.CvEnum;
-using Emgu.CV.UI;
 using Emgu.CV.Structure;
 
 
@@ -120,13 +108,11 @@ namespace EmguTF_pose
                 // If frame is not empty, try to process it
                 if (!m_frame.IsEmpty)
                 {
-                    Mat framtp = new Mat(); ;
-                    framtp = m_frame.Clone(); //CvInvoke.Resize(m_frame, framtp, new Size(257, 257));
-                    if (!inprocessframe) //if not already processing previous frame
+                    //if not already processing previous frame, process it
+                    if (!inprocessframe)
                     {
-                        ProcessFrame(framtp.Clone()); //thread creation & use is not the trouble
+                        ProcessFrame(m_frame.Clone());
                     }
-                    framtp.Dispose();
 
                     // Display keypoints and frame in imageview
                     ShowKeypoints();

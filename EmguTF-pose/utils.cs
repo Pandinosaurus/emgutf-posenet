@@ -61,6 +61,7 @@ namespace EmguTF_pose
                 {
                     CvInvoke.Resize(image, tmp, finalSize);
                     ReadTensorFromMatBgr(tmp, inputMean, scale, tensor);
+                    tmp.Dispose();
                 }
             }
             else

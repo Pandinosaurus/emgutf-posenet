@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Drawing;
+using System.IO;
 using Emgu.CV; 
 using Emgu.CV.Util;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
+
 
 namespace EmguTF_pose
 {
@@ -14,36 +16,74 @@ namespace EmguTF_pose
     /// translate it to its real location in the input image dimension with an offset vector.
     /// We will neglect the other outputs of the network for now (they are useful for multi-body 
     /// pose estimation only).
-    /// 
-    /// * The heatmap tensor is a 3D tensor of size resolution x resolution x 17 (number of keypoints)
-    ///   where each channel represents the probability of a specified keypoint
-    ///   on a regular grid (size resolution). The number 17 is known a-priori with PoseNet.
-    ///   
-    /// * The offset is a 3D tensor of size resolution x resolution x 34 (twice more channels)
-    ///   where channels 0-16 are X axis offset, and channels 17-33 are Y axis offsets
-    ///
-    /// * For both resolution Resolution = ((InputImageSize - 1) / OutputStride) + 1
-    ///   where InputImageSize is input dependent. In our case, we will make sure to resize it
-    ///   to 257 x 257 pixels. The output stride is fixed to 32 in our case (.tflite weights for
-    ///   other output stides have not been released & output stride 32 is the fastest version). 
-    ///   As a result, outputs resolution is equal to 9 here.
-    /// 
-    /// The workflow is the following:
-    ///     posenet(image) --> heatmap, offset --> getkeypoint(heatmap) --> getoffsets(offsets, keypoints)
     /// </summary>
-    class PoseNetEstimator : DeepNetworkLite 
+    class PoseNetEstimator
     {
         /// <summary>
-        /// The number of keypoints we can find.
-        /// This is an a-priori knowledge based on the network architecture.
-        /// We have 17 keypoints per body to find with PoseNet.
-        /// Their names are stored in <see cref="m_keypointsNames"/>, while the 
-        /// keypoints themselve are updated in after each forward pass/inference in <see cref="m_keypoints"/>.
+        /// A path to a frozen deep neural network saved with tensorflow lite.
         /// </summary>
-        public const int m_numberOfKeypoints = 17;
+        private String m_frozenModelPath = "";
 
         /// <summary>
-        /// The keypoints found with posenet on an input image.
+        /// Expected extension for a frozen model (.tflite)
+        /// </summary>
+        private String m_expectedModelExtension = ".tflite";
+
+        /// <summary>
+        /// Our model abstraction.
+        /// </summary>
+        private Emgu.TF.Lite.FlatBufferModel m_model = null;
+
+        /// <summary>
+        /// An interpreter for our model.
+        /// </summary>
+        private Emgu.TF.Lite.Interpreter m_interpreter = null;
+
+        /// <summary>
+        /// Our input tensor standing for an input RGB image.
+        /// </summary>
+        private Emgu.TF.Lite.Tensor m_inputTensor = null;
+
+        /// <summary>
+        /// An array of output tensors.
+        /// * Index 0. The heatmap tensor It is a 3D tensor of size resolution x resolution x 17 (number of keypoints)
+        ///            where each channel represents the probability of a specified keypoint
+        ///            on a regular grid (size resolution). The number 17 is known a-priori with PoseNet.
+        ///             + heatmaps.Dims[0] : batch size = 1
+        ///             + heatmaps.Dims[1] : resolution = W
+        ///             + heatmaps.Dims[2] : resolution = H
+        ///             + heatmaps.Dims[3] : channels (1/keypoint) = 17 with PoseNet
+        /// * Index 1. The offset tensor. It is a 3D tensor of size resolution x resolution x 34 (twice more channels)
+        ///            where channels 0-16 are X axis offset, and channels 17-33 are Y axis offsets
+        ///             + offsets.Dims[0] : batch size = 1
+        ///             + offsets.Dims[1] : resolution = W 
+        ///             + offsets.Dims[2] : resolution = H 
+        ///             + offsets.Dims[3] : channels (2/keypoint; 1 for X, 1 for Y) = 34 with PoseNet
+        /// * For both : resolution Resolution = ((InputImageSize - 1) / OutputStride) + 1
+        ///              where InputImageSize is input dependent. 
+        ///              Similarly: outputstride = (inputImage size - 1) / (Resolution -1)
+        /// </summary>
+        private Emgu.TF.Lite.Tensor[] m_outputTensors = null;
+
+        /// <summary>
+        /// A vector storing ordered body joint keypoint heatmaps as Emgu.CV.Mat objects.
+        /// </summary>
+        private VectorOfMat m_heatmapsChannels = new VectorOfMat(m_numberOfKeypoints);
+
+        /// <summary>
+        /// A vector storing the generated and ordered body joint keypoint offsets as Emgu.CV.Mat objects.
+        /// </summary>
+        private VectorOfMat m_offsetsChannels  = new VectorOfMat(m_numberOfKeypoints);
+
+        /// <summary>
+        /// The number of keypoints we can find. This is an a-priori knowledge based on the network architecture.
+        /// We have 17 keypoints per body to find with PoseNet. Their names are stored in <see cref="m_keypointsNames"/>, while the 
+        /// keypoints themselve are updated after each forward pass/inference in <see cref="m_keypoints"/>.
+        /// </summary>
+        private const int m_numberOfKeypoints = 17;
+
+        /// <summary>
+        /// An array of <see cref="Point"/> representing the keypoints found with posenet on an input image.
         /// Each keypoint is obtained as the maximum location from the estimated heatmaps stored in <see cref="m_heatmapsChannels"/>.
         /// The number of keypoints we retrieve is given by <see cref="m_numberOfKeypoints"/>.
         /// The name for each keypoint is stored in <see cref="m_keypointNames"/>.
@@ -51,101 +91,197 @@ namespace EmguTF_pose
         public Point[] m_keypoints = new Point[m_numberOfKeypoints];
 
         /// <summary>
-        /// A vector of strings storing the name of the ordered keypoints found with posenet. 
+        /// An array of <see cref="string"/> storing the name of the ordered <see cref="m_keypoints"/> found with posenet.
         /// </summary>
-        public string[] m_keypointName = new string[m_numberOfKeypoints]{
+        private string[] m_keypointName = new string[m_numberOfKeypoints]{
                     "nose", "left eye", "right eye", "left ear", "right ear", "left shoulder",
                     "right shoulder", "left elbow", "right elbow", "left wrist", "right wrist",
                     "left hip", "right hip", "left knee", "right knee", "left ankle", "right ankle"
         };
 
         /// <summary>
-        /// A vector storing the generated and ordered body joint keypoint heatmaps.
-        /// 
-        /// Purpose: Each keypoint is retrieved from a probabilistic heatmap generated by the DCNN.
-        ///          Heatmaps are represented through 3D tensor that we convert to an Emgu.CV.Mat in <see cref="Inference(Mat)"/>.
-        ///          Each channel of the resulting Mat represent one heatmap, therefore standing for one keypoint.
-        ///          We split the channels and store them in our m_heatmapsChannels to later retrieve keypoint locations.
-        /// 
-        /// NB: Because the heatmap resolution is smaller than the input image resolution, we need to use
-        ///     the offset values generated by the network and stored in <see cref="m_offsetsChannels"/>
-        ///     to display the keypoints.
+        /// Default constructor. It does nothing but allocating memory. Use the constructor with arguments.
         /// </summary>
-        private VectorOfMat m_heatmapsChannels = new VectorOfMat(m_numberOfKeypoints);
-
-        /// <summary>
-        /// A vector storing the generated and ordered body joint keypoint offsets.
-        /// 
-        /// Purpose: For each keypoint obtained from an heatmap channel stored in <see cref="m_heatmapsChannels"/>,
-        ///          we need to retrieve a translation vector from the output grid resolution to the input
-        ///          image resolution. These translation vectors are particularly useful for display purpose.
-        ///          We propose to store all the offsets matrix in a VectorOfMat to use Emgu.CV functions on them.
-        ///          This storage is achieved by converting the 3D tensors to Emgu.CV Mat in <see cref="Inference(Mat)"/>,
-        ///          then splitting the Mat along the channels dimension.
-        /// </summary>
-        private VectorOfMat m_offsetsChannels = new VectorOfMat(m_numberOfKeypoints);
-
-        /// <summary>
-        /// Default constructor. It does nothing but allocating memory. 
-        /// You need to specify a frozen model path to make it works.
-        /// TIP : use the constructor with arguments, this one is useless for now.
-        /// </summary>
-        public PoseNetEstimator() { }
-
-        /// <summary>
-        /// Constructor with arguments interfacing with the base constructor with argument.
-        /// </summary>
-        /// <param name="frozenModelPath">Path to a PoseNet model saved with tensorflow lite (.tflite file).</param>
-        /// <param name="numberOfThreads">Number of threads the neural network will be able to use (default: 2, from base class)</param>
-        public PoseNetEstimator(String frozenModelPath,
-                             int numberOfThreads) : base(frozenModelPath,
-                                                         numberOfThreads)
+        public PoseNetEstimator()
         {
         }
 
         /// <summary>
-        /// Perform a forward pass on the image using the current PoseNetEstimator.
-        /// We assume the PoseNetEstimator was constructed with the constructor with arguments.
+        /// Constructor with arguments defining the values of <see cref="m_frozenModelPath"/>, <see cref="m_model"/>,
+        /// <see cref="m_interpreter"/>. It also defines <see cref="m_outputTensors"/> as the <see cref="m_interpreter.Outputs>
+        /// and <see cref="m_inputTensor"/> as <see cref="m_inputTensor.Inputs[0]"/>, assuming the input tensor will be a 
+        /// 3 channels BGR image.
         /// </summary>
-        /// <param name="image">A RGB image. It will be resized during the inference to match the network's input size.</param>
-        /// <returns>An empty array of Points on error (size 0).
-        ///          Otherwise, retrun an array of 17 points <see cref="m_numberOfKeypoints"/> representing 17 human body keypoints. 
-        ///          If the probability of a keypoint is too low (hardcoded threshold for now, see below),
-        ///          keypoint is set to Point(-1,-1). The points are returned in the dimension
-        ///          of the network's input size (e.g. 257x257). You may need to further interpolate them for display purpose. A useful
-        ///          formula is newX = (currentX / currentWidth) * newWidth (same for y , height). Additionaly, you may want to check
-        ///          the list of the ordered keypoints. In this function, we enfore lower body part to not be found (i.e., we set the
-        ///          points to Point(-1,-1) for all keypoints 12 to 17.
-        ///          
-        ///          Ordered keypoints list :
-        ///          
-        /// </returns>
-        public Point[] Inference(Emgu.CV.Mat image)
+        /// <param name="frozenModelPath">Path to a PoseNet model saved with tensorflow lite (.tflite file).</param>
+        /// <param name="numberOfThreads">Number of threads the neural network will be able to use (default: 2, from base class)</param>
+        public PoseNetEstimator(String frozenModelPath,
+                                int numberOfThreads = 4)
         {
-            // Forward pass
-            Emgu.TF.Lite.Tensor[] inference_output = InferenceOnImage(image);
+            // Check file
+            if (!File.Exists(frozenModelPath))
+            {
+                Console.WriteLine("ERROR:");
+                Console.WriteLine("FrozenModelPath specified in DeepNetworkLite " +
+                                  "construtor with argument does not exist.");
+                Console.WriteLine("Network not loaded.");
+                return;
+            }
+            if (Path.GetExtension(frozenModelPath) != m_expectedModelExtension)
+            {
+                Console.WriteLine("ERROR:");
+                Console.WriteLine("Extension of specified frozen model path in DeepNetworkLite " +
+                                  "constructor with argument does not" +
+                                  "match " + m_expectedModelExtension);
+                Console.WriteLine("Network not loaded.");
+                return;
+            }
 
-            // 1- Converts 3D tensors to Emgu.CV.Mat - 9 is the resolution here
-            // Shapes:
-            //    inference_output[0] : heatmaps
-            //         heatmaps.Dims[0] : batch size = 1
-            //         heatmaps.Dims[1] : resolution = W
-            //         heatmaps.Dims[2] : resolution = H
-            //         heatmaps.Dims[3] : channels (1/keypoint) = 17 with PoseNet
-            //    inference_output[1] : offsets
-            //         offsets.Dims[0] : batch size = 1
-            //         offsets.Dims[1] : resolution = W 
-            //         offsets.Dims[2] : resolution = H 
-            //         offsets.Dims[3] : channels (2/keypoint; 1 for X, 1 for Y) = 34 with PoseNet
-            // ------------------------------------------------------------------------
-            Emgu.CV.Mat heatmaps_mat = new Emgu.CV.Mat();
-            Emgu.CV.Mat offsets_mat = new Emgu.CV.Mat();
+            if (m_frozenModelPath == "")
+                m_frozenModelPath = frozenModelPath;
+
             try
             {
-                heatmaps_mat = new Mat(9, 9, DepthType.Cv32F, 17, inference_output[0].DataPointer,
-                                       sizeof(float) * 3 * inference_output[0].Dims[1]);
-                offsets_mat = new Mat(9, 9, DepthType.Cv32F, 34, inference_output[1].DataPointer,
-                                      sizeof(float) * 3 * inference_output[1].Dims[1]);
+                if (m_frozenModelPath != "")
+                {
+                    m_model = new Emgu.TF.Lite.FlatBufferModel(filename: m_frozenModelPath);
+                    m_interpreter = new Emgu.TF.Lite.Interpreter(flatBufferModel: m_model);
+                    m_interpreter.AllocateTensors();
+                    m_interpreter.SetNumThreads(numThreads: numberOfThreads);
+                }
+            }
+            catch
+            {
+                DisposeObjects();
+
+                Console.WriteLine("ERROR:");
+                Console.WriteLine("Unable to load frozen model in DeepNetworkLite constructor with arguments " +
+                                  "despite files was found with correct extension. " +
+                                  "Please, make sure you saved your model using tensorflow lite pipelines." +
+                                  "Current path found is : " + m_frozenModelPath);
+                return;
+            }
+
+            if (m_inputTensor == null)
+            {
+
+                int[] input = m_interpreter.InputIndices;
+                m_inputTensor = m_interpreter.GetTensor(input[0]);
+
+            }
+
+            if (m_outputTensors == null)
+            {
+                m_outputTensors = m_interpreter.Outputs;
+            }
+
+            return;
+        }
+
+        /// <summary>
+        /// Desctructor. Call <see cref="DisposeObjects"/>.
+        /// </summary>
+        ~PoseNetEstimator()
+        {
+            DisposeObjects();
+        }
+
+        /// <summary>
+        /// Dispose our model and interpreter.
+        /// </summary>
+        public void DisposeObjects()
+        {
+            if (m_model != null)
+            {
+                m_model.Dispose();
+                m_model = null;
+            }
+
+            if (m_interpreter != null)
+            {
+                m_interpreter.Dispose();
+                m_interpreter = null;
+            }
+        }
+
+        /// <summary>
+        /// Apply sigmoid on a value
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns> 1 / (1 / exp(-value))</returns>
+        public double sigmoid(double value)
+        {
+            return 1 / (1 + Math.Exp(-value));
+        }
+
+
+        /// <summary>
+        /// Perform a forward pass on the image using the current <see cref="m_interpreter"/>.
+        /// We assume a PoseNetEstimator instance constructed with the constructor with arguments.
+        /// </summary>
+        /// <param name="inputImage">A RGB image. It will be resized during the inference to match the network's input size.</param>
+        /// <returns>
+        /// On error : An empty array of Points (size 0 ; new Point[0]).
+        /// On success : Return an array of 17 points <see cref="m_numberOfKeypoints"/> representing 17 human body keypoints. 
+        ///              If the probability of a keypoint is too low (hardcoded threshold for now, see below),
+        ///              keypoint is set to Point(-1,-1). The points are returned in the dimension
+        ///              of the network's input size (e.g., 257x257). 
+        ///              You may need to further interpolate them for display purpose. A useful formula is 
+        ///              newX = (currentX / currentWidth) * newWidth (same for y , height). 
+        ///          
+        /// </returns>
+        public Point[] Inference(Emgu.CV.Mat inputImage)
+        {
+            // Forward pass
+            // Is the input empty ?
+            if (inputImage.IsEmpty)
+            {
+                Console.WriteLine("ERROR:");
+                Console.WriteLine("Empty image given to InferenceOnImage in DeepNetworkLite classe. " +
+                                    "Return.");
+                return new Point[0];
+            }
+
+            // Is the input encoded with 32 bit floating point precision ?
+            if (inputImage.Depth != Emgu.CV.CvEnum.DepthType.Cv32F)
+            {
+                inputImage.ConvertTo(inputImage, Emgu.CV.CvEnum.DepthType.Cv32F);
+                inputImage /= 255;
+            }
+
+            using (Mat image = inputImage)
+            {
+                try
+                {
+                    // Load image in interpreter using ReadTensorFromMatBgr function from the utils.
+                    Utils.ReadTensorFromMatBgr(
+                        image: image,
+                        tensor: m_inputTensor,
+                        inputHeight: m_inputTensor.Dims[1],
+                        inputWidth: m_inputTensor.Dims[2]
+                    );
+
+                    // Actually perfom the inference
+                    m_interpreter.Invoke();
+                }
+                catch
+                {
+                    Console.WriteLine("ERROR:");
+                    Console.WriteLine("Unable to invoke interpreter in DeepNetworkLite.");
+                    return new Point[0];
+                }
+            }
+
+            // 1- Converts 3D tensors to Emgu.CV.Mat - 9 is the resolution here
+            Emgu.CV.Mat heatmaps_mat = new Emgu.CV.Mat();
+            Emgu.CV.Mat offsets_mat  = new Emgu.CV.Mat();
+            try
+            {
+                heatmaps_mat = new Mat(m_outputTensors[0].Dims[1], m_outputTensors[0].Dims[2], 
+                                       DepthType.Cv32F, m_numberOfKeypoints, m_outputTensors[0].DataPointer,
+                                       sizeof(float) * 3 * m_outputTensors[0].Dims[1]);
+                offsets_mat = new Mat(m_outputTensors[1].Dims[1], m_outputTensors[1].Dims[2],
+                                       DepthType.Cv32F, m_numberOfKeypoints*2, m_outputTensors[1].DataPointer,
+                                      sizeof(float) * 3 * m_outputTensors[1].Dims[1]);
             }
             catch
             {
@@ -168,7 +304,7 @@ namespace EmguTF_pose
             // 3 - Get max prob on heatmap and apply offset :D
             try
             {
-                for (var i = 0; i < 11; i++) // 11 and not 17 to keep only upper body keypoints - todo: remove hardcoded
+                for (var i = 0; i < m_numberOfKeypoints; i++) // 11 and not 17 to keep only upper body keypoints - todo: remove hardcoded
                 {
                     var maxLoc = new Point();
                     var minLoc = new Point();
@@ -184,8 +320,9 @@ namespace EmguTF_pose
                         var y = offset_y[maxLoc.Y, maxLoc.X];
                         var x = offset_x[maxLoc.Y, maxLoc.X];
 
-                        m_keypoints[i] = new Point((maxLoc.X * 32 + (int)x.Intensity), (maxLoc.Y * 32 + (int)y.Intensity));
-                        // 32 is the output stride
+                        int output_stride = (this.m_interpreter.Inputs[0].Dims[1] - 1) / (this.m_interpreter.Outputs[0].Dims[1] - 1);
+                        m_keypoints[i] = new Point((maxLoc.X * output_stride + (int)x.Intensity), 
+                                                   (maxLoc.Y * output_stride + (int)y.Intensity));
                     }
                     else
                     {
@@ -203,11 +340,6 @@ namespace EmguTF_pose
             // Dispose
             heatmaps_mat.Dispose();
             offsets_mat.Dispose();
-            for(var i=0; i<17; i++)
-            {
-                m_heatmapsChannels[i].Dispose();
-                m_offsetsChannels[i].Dispose();
-            }
             return m_keypoints;
         }
     }
