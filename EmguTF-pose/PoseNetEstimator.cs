@@ -8,10 +8,28 @@ using Emgu.CV.Structure;
 namespace EmguTF_pose
 {
     /// <summary>
-    /// A posenet estimator is a deep neural network loaded with Emgu.TF.Lite
+    /// A posenet estimator is a deep neural network loaded with Emgu.TF.Lite. It will
+    /// find joint keypoints based on estimated joint heatmaps and offset vectors.
     /// </summary>
     class PoseNetEstimator : DeepNetworkLite 
     {
+        /// <summary>
+        /// The keypoints found with posenet.
+        /// </summary>
+        public Point[] m_keypoints;
+
+        /// <summary>
+        /// The name of the keypoints found with posenet.
+        /// </summary>
+        public string[] m_keypointNames;
+
+        /// <summary>
+        /// The number of keypoints we can find.
+        /// This is an a-priori knowledge based on the network architecture.
+        /// We have 17 keypoints per body to find with PoseNet.
+        /// </summary>
+        public const int m_numberOfKeypoints = 17;
+
         /// <summary>
         /// Default constructor. It does nothing but allocating memory. 
         /// You need to specify a frozen model path to make it works.
@@ -21,15 +39,18 @@ namespace EmguTF_pose
 
         /// <summary>
         /// Constructor with arguments interfacing with the base constructor with argument.
-        /// Nothing is added here.
         /// </summary>
         /// <param name="frozenModelPath">Path to a deep neural network frozen and saved with tensorflow lite.</param>
         /// <param name="numberOfThreads">Number of threads the neural network will be able to use (default: 2)</param>
-        public PoseNetEstimator(String frozenModelPath, 
-                             int numberOfThreads) : base(frozenModelPath, 
+        public PoseNetEstimator(String frozenModelPath,
+                             int numberOfThreads) : base(frozenModelPath,
                                                          numberOfThreads)
         {
-
+            m_keypoints = new Point[m_numberOfKeypoints];
+            m_keypointNames = new string[m_numberOfKeypoints]{
+                    "nose", "left eye", "right eye", "left ear", "right ear", "left shoulder",
+                    "right shoulder", "left elbow", "right elbow", "left wrist", "right wrist",
+                    "left hip", "right hip", "left knee", "right knee", "left ankle", "right ankle"};
         }
 
         /// <summary>
@@ -45,23 +66,7 @@ namespace EmguTF_pose
         ///          points to Point(-1,-1) for all keypoints 12 to 17.
         ///          
         ///          Ordered keypoints list :
-        ///          nose
-        ///          left eye
-        ///          right eye
-        ///          left ear
-        ///          right ear
-        ///          left shoulder
-        ///          right shoulder
-        ///          left elbow
-        ///          right elbow
-        ///          left wrist
-        ///          right wrist
-        ///          left hip
-        ///          right hip
-        ///          left knee
-        ///          right knee
-        ///          left ankle
-        ///          right ankle
+        ///          
         /// </returns>
         public Point[] Inference(Emgu.CV.Mat image)
         {
@@ -131,7 +136,6 @@ namespace EmguTF_pose
             }
 
             // 3 - Get max prob on heatmap and apply offset :D
-            Point[] keypoints = new Point[17];
             try
             {
                 for (var i = 0; i < 11; i++) // 11 and not 17 to keep only upper body keypoints - todo: remove hardcoded
@@ -150,12 +154,12 @@ namespace EmguTF_pose
                         var y = offset_y[maxLoc.Y, maxLoc.X];
                         var x = offset_x[maxLoc.Y, maxLoc.X];
 
-                        keypoints[i] = new Point((maxLoc.X * 32 + (int)x.Intensity), (maxLoc.Y * 32 + (int)y.Intensity));
+                        m_keypoints[i] = new Point((maxLoc.X * 32 + (int)x.Intensity), (maxLoc.Y * 32 + (int)y.Intensity));
                         // 32 is the output stride
                     }
                     else
                     {
-                        keypoints[i] = new Point(-1, -1);
+                        m_keypoints[i] = new Point(-1, -1);
                     }
                 }
             }
@@ -174,7 +178,7 @@ namespace EmguTF_pose
                 heatmaps_channels[i].Dispose();
                 offsets_channels[i].Dispose();
             }
-            return keypoints;
+            return m_keypoints;
         }
     }
 }

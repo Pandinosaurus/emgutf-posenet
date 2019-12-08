@@ -135,10 +135,10 @@ namespace EmguTF_pose
 
                         // Actually perfom the inference
                         m_interpreter.Invoke();
+                        GC.KeepAlive(m_interpreter); 
                     }
                     catch // The garbage collector messed up - probably due to an error in EmguCV wrapper to tensorflow C++ code
                     {
-                        GC.KeepAlive(m_interpreter);   
                         Console.WriteLine("Error in DeepNetworkLite Inference");
                         Console.WriteLine("Disposing...");
                         try
@@ -171,13 +171,14 @@ namespace EmguTF_pose
                         m_interpreter.SetNumThreads(numThreads: 4);
 
                         Console.WriteLine("Return empty outputs...");
-                        GC.KeepAlive(m_interpreter);   
+                        GC.KeepAlive(m_interpreter);
                         return m_interpreter.Outputs;
                     }
                 }
 
                 // Return the output after inference
                 image.Dispose();
+                GC.KeepAlive(m_interpreter);
                 return m_interpreter.Outputs;
         }
 

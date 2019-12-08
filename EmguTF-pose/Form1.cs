@@ -39,12 +39,6 @@ namespace EmguTF_pose
         private PoseNetEstimator m_posenet;
 
         /// <summary>
-        /// Our keypoints found with a pose etimator
-        /// </summary>
-        private Point[] m_keypoints;
-        private readonly object m_keypointsLock = new object();
-
-        /// <summary>
         /// A basic flag checking if process frame is ongoing or not.
         /// </summary>
         static bool inprocessframe = false;
@@ -102,7 +96,7 @@ namespace EmguTF_pose
             // Pose estimator - to do remove hardcoded things !
             m_posenet = new PoseNetEstimator(frozenModelPath: "posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite",
                                              numberOfThreads: 4);
-            m_keypoints = new Point[17]; // we know a-priori that we can get 17 keypoints
+
         }
 
         /// <summary>
@@ -157,7 +151,7 @@ namespace EmguTF_pose
                 inprocessframe = true;
                 DateTime start = DateTime.Now;
 
-                m_keypoints = m_posenet.Inference(frame);
+                m_posenet.Inference(frame);
 
                 DateTime stop = DateTime.Now;
                 long elapsedTicks = stop.Ticks - start.Ticks;
@@ -175,22 +169,19 @@ namespace EmguTF_pose
         {
             if (!m_frame.IsEmpty)
             {
-                lock (m_keypointsLock)
+                float count = 1;
+                foreach (Point pt in m_posenet.m_keypoints) // if not empty array of points
                 {
-                    float count = 1;
-                    foreach (Point pt in m_keypoints) // if not empty array of points
+                    if ((pt.X != -1) & (pt.Y != -1)) // if points are valids
                     {
-                        if ((pt.X != -1) & (pt.Y != -1)) // if points are valids
-                        {
-                            //newX = (currentX / currentWidth) * newWidth
-                            //newY = (currentY / currentHeight) * newHeight
-                            Emgu.CV.CvInvoke.Circle(m_frame,
-                                                    new Point((int)((float)pt.X * m_frame.Width / 257),
-                                                              (int)((float)pt.Y * m_frame.Height / 257)),
-                                                    3, new MCvScalar(200, 255, (int)((float)255 / count), 255), 2);
-                        }
-                        count++;
+                        //newX = (currentX / currentWidth) * newWidth
+                        //newY = (currentY / currentHeight) * newHeight
+                        Emgu.CV.CvInvoke.Circle(m_frame,
+                                                new Point((int)((float)pt.X * m_frame.Width / 257),
+                                                            (int)((float)pt.Y * m_frame.Height / 257)),
+                                                3, new MCvScalar(200, 255, (int)((float)255 / count), 255), 2);
                     }
+                    count++;
                 }
             }
         }
