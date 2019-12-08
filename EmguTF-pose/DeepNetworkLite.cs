@@ -147,7 +147,8 @@ namespace EmguTF_pose
                             if (m_interpreter.Ptr != IntPtr.Zero) //in case garbage collector messed up
                             {
                                 m_interpreter.Dispose();
-                            }
+                                GC.KeepAlive(m_interpreter);
+                             }
                         }
                         catch
                         {
