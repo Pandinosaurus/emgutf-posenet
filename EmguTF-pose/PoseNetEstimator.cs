@@ -108,7 +108,7 @@ namespace EmguTF_pose
 
         /// <summary>
         /// Constructor with arguments defining the values of <see cref="m_frozenModelPath"/>, <see cref="m_model"/>,
-        /// <see cref="m_interpreter"/>. It also defines <see cref="m_outputTensors"/> as the <see cref="m_interpreter.Outputs>
+        /// <see cref="m_interpreter"/>. It also defines <see cref="m_outputTensors"/> as the <see cref="m_interpreter.Outputs">
         /// and <see cref="m_inputTensor"/> as <see cref="m_inputTensor.Inputs[0]"/>, assuming the input tensor will be a 
         /// 3 channels BGR image.
         /// </summary>
