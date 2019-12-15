@@ -5,10 +5,65 @@ using Emgu.CV;
 using Emgu.CV.Util;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
-
+using System.Collections.Generic;
 
 namespace EmguTF_pose
 {
+    /// <summary>
+    /// Enumerate available body parts. 
+    /// 
+    /// Note:
+    /// Last enumeration value NUMBER_MAX is used to get the number of body parts. 
+    /// It is useful to create fixed size arrays and vectors for body parts.
+    /// We need it because the enum block start counting to 0 and retrieving the 
+    /// number of elements in an enumeration is syntaxically complex.
+    /// </summary>
+    enum BodyParts
+    {
+        NOSE,
+        LEFT_EYE,
+        RIGHT_EYE,
+        LEFT_EAR,
+        RIGHT_EAR,
+        LEFT_SHOULDER,
+        RIGHT_SHOULDER,
+        LEFT_ELBOW,
+        RIGHT_ELBOW,
+        LEFT_WRIST,
+        RIGHT_WRIST,
+        LEFT_HIP,
+        RIGHT_HIP,
+        LEFT_KNEE,
+        RIGHT_KNEE,
+        LEFT_ANKLE,
+        RIGHT_ANKLE,
+        NUMBER_MAX
+    }
+
+    /// <summary>
+    /// A class representing a keypoint in posenet. Each keypoint will be related to a body part from <see cref="BodyParts"/>.
+    /// It will be assigned a position and a floating point precision score. The score will be the probability of the keypoint
+    /// being a body part.
+    /// </summary>
+    class Keypoint
+    {
+        public int bodyPart = -1;
+        public Point position = new Point(-1, -1);
+        public Point position_raw = new Point(-1, -1);
+        public float score = 0.0f;
+
+        public Keypoint() { }
+        public void reset()
+        {
+            bodyPart = -1;
+            position.X = -1;
+            position.Y = -1;
+            position_raw.X = -1;
+            position_raw.Y = -1;
+            score = 0.0f;
+        }
+    }
+
     /// <summary>
     /// A posenet estimator is a deep neural network loaded with Emgu.TF.Lite. It 
     /// generates a 3D tensor of heatmaps and a 3D tensor of offsets when fed with an 
@@ -59,7 +114,7 @@ namespace EmguTF_pose
         ///             + offsets.Dims[1] : resolution = W 
         ///             + offsets.Dims[2] : resolution = H 
         ///             + offsets.Dims[3] : channels (2/keypoint; 1 for X, 1 for Y) = 34 with PoseNet
-        /// * For both : resolution Resolution = ((InputImageSize - 1) / OutputStride) + 1
+        /// * For all : resolution Resolution = ((InputImageSize - 1) / OutputStride) + 1
         ///              where InputImageSize is input dependent. 
         ///              Similarly: outputstride = (inputImage size - 1) / (Resolution -1)
         /// </summary>
@@ -67,20 +122,36 @@ namespace EmguTF_pose
 
         /// <summary>
         /// A vector storing ordered body joint keypoint heatmaps as Emgu.CV.Mat objects.
+        /// It is filled by splitting the heatmap retrieved from <see cref="m_outputTensors[0]"/>
+        /// along the channels dimension.
         /// </summary>
         private VectorOfMat m_heatmapsChannels = new VectorOfMat(m_numberOfKeypoints);
 
         /// <summary>
         /// A vector storing the generated and ordered body joint keypoint offsets as Emgu.CV.Mat objects.
+        /// First 17 channels are for the X axis offsets, last 17 channels are for the X axis offsets.
+        /// It is filled by splitting the heatmap from <see cref="m_outputTensors[1]"/>
+        /// along the channels dimension.
         /// </summary>
-        private VectorOfMat m_offsetsChannels  = new VectorOfMat(m_numberOfKeypoints);
+        private VectorOfMat m_offsetsChannels = new VectorOfMat(m_numberOfKeypoints*2);
 
         /// <summary>
-        /// The number of keypoints we can find. This is an a-priori knowledge based on the network architecture.
-        /// We have 17 keypoints per body to find with PoseNet. Their names are stored in <see cref="m_keypointsNames"/>, while the 
-        /// keypoints themselve are updated after each forward pass/inference in <see cref="m_keypoints"/>.
+        /// TODO
         /// </summary>
-        private const int m_numberOfKeypoints = 17;
+        private VectorOfMat m_forwardDisplacementChannels = new VectorOfMat((m_numberOfKeypoints-1)*2);
+
+        /// <summary>
+        /// TODO
+        /// </summary>
+        private VectorOfMat m_backwardDisplacementChannels = new VectorOfMat((m_numberOfKeypoints-1) * 2);
+
+        /// <summary>
+        /// The number of body part keypoints we can find. 
+        /// This is an a-priori knowledge based on the network architecture.
+        /// We have 17 keypoints per body to find with PoseNet. 
+        /// The keypoint are updated after each forward pass/inference in <see cref="m_keypoints"/>.
+        /// </summary>
+        private const int m_numberOfKeypoints = (int)BodyParts.NUMBER_MAX;
 
         /// <summary>
         /// An array of <see cref="Point"/> representing the keypoints found with posenet on an input image.
@@ -88,15 +159,68 @@ namespace EmguTF_pose
         /// The number of keypoints we retrieve is given by <see cref="m_numberOfKeypoints"/>.
         /// The name for each keypoint is stored in <see cref="m_keypointNames"/>.
         /// </summary>
-        public Point[] m_keypoints = new Point[m_numberOfKeypoints];
+        public Keypoint[] m_keypoints = new Keypoint[m_numberOfKeypoints];
 
         /// <summary>
-        /// An array of <see cref="string"/> storing the name of the ordered <see cref="m_keypoints"/> found with posenet.
+        /// Define the joints between keypoints. A joint is, basically, a line between two keypoints.
+        /// It is used to draw the lines between the keypoints.
+        /// We only define uper body joints here.
         /// </summary>
-        private string[] m_keypointName = new string[m_numberOfKeypoints]{
-                    "nose", "left eye", "right eye", "left ear", "right ear", "left shoulder",
-                    "right shoulder", "left elbow", "right elbow", "left wrist", "right wrist",
-                    "left hip", "right hip", "left knee", "right knee", "left ankle", "right ankle"
+        public int[][] m_keypointsJoints = new int[][]
+        {
+            new int[2]{ (int)BodyParts.NOSE, (int)BodyParts.LEFT_EYE }, 
+            new int[2]{ (int)BodyParts.NOSE, (int)BodyParts.RIGHT_EYE },
+            new int[2]{ (int)BodyParts.LEFT_EYE, (int)BodyParts.LEFT_EAR },
+            new int[2]{ (int)BodyParts.RIGHT_EYE, (int)BodyParts.RIGHT_EAR },
+            new int[2]{ (int)BodyParts.LEFT_SHOULDER, (int)BodyParts.RIGHT_SHOULDER },
+            new int[2]{ (int)BodyParts.LEFT_SHOULDER, (int)BodyParts.LEFT_ELBOW },
+            new int[2]{ (int)BodyParts.RIGHT_SHOULDER, (int)BodyParts.RIGHT_ELBOW },
+            new int[2]{ (int)BodyParts.LEFT_ELBOW, (int)BodyParts.LEFT_WRIST },
+            new int[2]{ (int)BodyParts.RIGHT_ELBOW, (int)BodyParts.RIGHT_WRIST },
+            new int[2]{ (int)BodyParts.LEFT_SHOULDER, (int)BodyParts.LEFT_HIP },
+            new int[2]{ (int)BodyParts.RIGHT_SHOULDER, (int)BodyParts.RIGHT_HIP },
+            new int[2]{ (int)BodyParts.LEFT_HIP, (int)BodyParts.RIGHT_HIP }
+        };
+
+        /// <summary>
+        /// Define a linear chain adjacency matrix between our keypoints <see cref="m_keypoints"/> using
+        /// the indices from <see cref="BodyParts"/>,  allowing for a graph-like representation. 
+        /// 
+        /// It defines the parent->children relationship, which is a directed
+        /// relationship as opposed to <see cref="m_keypointsJoints"/>. It can be used in reverse order
+        /// to access the children->parent relationship.
+        /// 
+        /// It is useful in order to refine the estimated pose using the displacement vectors
+        /// for multi-body pose estimation (also more robust than single body pose estimation 
+        /// solely based on heatmap and offsets). We recall that the displacement vectors define 
+        /// an approximate translation generated by the network between a parent and its children 
+        /// (forward), and vice-versa (backward).
+        /// As a result :
+        /// Direct parent->children relationship could be used with the forward displacement
+        /// vectors from <see cref="m_outputTensors[2]"/> to get human body pose starting at
+        /// a root / parent node. 
+        /// Reverse children->parent relationship could be used with the backward displacement
+        /// vectors from <see cref="m_outputTensors[3]"/> to get human body pose starting at 
+        /// a root / children node.
+        /// </summary>
+        public int[][] m_keypointsChain = new int[][]
+        {
+              new int[2]{ (int)BodyParts.NOSE, (int)BodyParts.LEFT_EYE },
+              new int[2]{ (int)BodyParts.LEFT_EYE, (int)BodyParts.LEFT_EAR },
+              new int[2]{ (int)BodyParts.NOSE, (int)BodyParts.RIGHT_EYE },
+              new int[2]{ (int)BodyParts.RIGHT_EYE, (int)BodyParts.RIGHT_EAR },
+              new int[2]{ (int)BodyParts.NOSE, (int)BodyParts.LEFT_SHOULDER },
+              new int[2]{ (int)BodyParts.LEFT_SHOULDER, (int)BodyParts.LEFT_ELBOW },
+              new int[2]{ (int)BodyParts.LEFT_ELBOW, (int)BodyParts.LEFT_WRIST },
+              new int[2]{ (int)BodyParts.LEFT_SHOULDER, (int)BodyParts.LEFT_HIP },
+              new int[2]{ (int)BodyParts.LEFT_HIP, (int)BodyParts.LEFT_KNEE },
+              new int[2]{ (int)BodyParts.LEFT_KNEE, (int)BodyParts.LEFT_ANKLE },
+              new int[2]{ (int)BodyParts.NOSE, (int)BodyParts.RIGHT_SHOULDER },
+              new int[2]{ (int)BodyParts.RIGHT_SHOULDER, (int)BodyParts.RIGHT_ELBOW },
+              new int[2]{ (int)BodyParts.RIGHT_ELBOW, (int)BodyParts.RIGHT_WRIST },
+              new int[2]{ (int)BodyParts.RIGHT_SHOULDER, (int)BodyParts.RIGHT_HIP },
+              new int[2]{ (int)BodyParts.RIGHT_HIP, (int)BodyParts.RIGHT_KNEE },
+              new int[2]{ (int)BodyParts.RIGHT_KNEE, (int)BodyParts.RIGHT_ANKLE }
         };
 
         /// <summary>
@@ -108,7 +232,7 @@ namespace EmguTF_pose
 
         /// <summary>
         /// Constructor with arguments defining the values of <see cref="m_frozenModelPath"/>, <see cref="m_model"/>,
-        /// <see cref="m_interpreter"/>. It also defines <see cref="m_outputTensors"/> as the <see cref="m_interpreter.Outputs>
+        /// <see cref="m_interpreter"/>. It also defines <see cref="m_outputTensors"/> as the <see cref="m_interpreter.Outputs">
         /// and <see cref="m_inputTensor"/> as <see cref="m_inputTensor.Inputs[0]"/>, assuming the input tensor will be a 
         /// 3 channels BGR image.
         /// </summary>
@@ -174,6 +298,12 @@ namespace EmguTF_pose
                 m_outputTensors = m_interpreter.Outputs;
             }
 
+            // Populate our array of keypoints
+            for (int i = 0; i < m_keypoints.Length; i++)
+            {
+                m_keypoints[i] = new Keypoint();
+            }
+
             return;
         }
 
@@ -186,7 +316,7 @@ namespace EmguTF_pose
         }
 
         /// <summary>
-        /// Dispose our model and interpreter.
+        /// Dispose our model <see cref="m_model"/> and interpreter <see cref="m_interpreter"/>.
         /// </summary>
         public void DisposeObjects()
         {
@@ -213,35 +343,42 @@ namespace EmguTF_pose
             return 1 / (1 + Math.Exp(-value));
         }
 
-
         /// <summary>
+        /// ToDo
         /// Perform a forward pass on the image using the current <see cref="m_interpreter"/>.
         /// We assume a PoseNetEstimator instance constructed with the constructor with arguments.
+        /// Process:
+        ///     -> convert inputImage to float32 precision (values 0...1) 
+        ///     -> resize inputImage to input tensor dim and load it in input tensor
+        ///     -> invoke interpreter to perform a forward pass, get heatmaps and offsets in output tensor dim
+        ///     -> get keypoint from heatmaps in output tensor dim
+        ///     -> translate keypoint to input tensor dim using offset 
+        ///     -> rescale keypoints to inputImage dim
+        ///     -> return keypoints
         /// </summary>
         /// <param name="inputImage">A RGB image. It will be resized during the inference to match the network's input size.</param>
         /// <returns>
-        /// On error : An empty array of Points (size 0 ; new Point[0]).
-        /// On success : Return an array of 17 points <see cref="m_numberOfKeypoints"/> representing 17 human body keypoints. 
-        ///              If the probability of a keypoint is too low (hardcoded threshold for now, see below),
-        ///              keypoint is set to Point(-1,-1). The points are returned in the dimension
-        ///              of the network's input size (e.g., 257x257). 
-        ///              You may need to further interpolate them for display purpose. A useful formula is 
-        ///              newX = (currentX / currentWidth) * newWidth (same for y , height). 
+        /// On error : An empty array of <see cref="Keypoint"/>.
+        /// On success : Return an array of <see cref="m_numberOfKeypoints"/> <see cref="Keypoint"/> representing human body parts ordered as <see cref="BodyParts"/>.
+        ///              If the probability <see cref="Keypoint.score"/> of a <see cref="Keypoint"/> is too low (hardcoded threshold for now, see below),
+        ///              keypoint position is set to Point(-1,-1). This value can be used in conditional statements.
+        ///              The keypoints are returned in the dimension of the inputImage. No need to further rescale the result for display. 
         ///          
         /// </returns>
-        public Point[] Inference(Emgu.CV.Mat inputImage)
+        public Keypoint[] Inference(Emgu.CV.Mat inputImage)
         {
-            // Forward pass
+            // 0- Forward pass
             // Is the input empty ?
             if (inputImage.IsEmpty)
             {
                 Console.WriteLine("ERROR:");
-                Console.WriteLine("Empty image given to InferenceOnImage in DeepNetworkLite classe. " +
-                                    "Return.");
-                return new Point[0];
+                Console.WriteLine("Empty image given to Inference PoseNetEstimarot. " +
+                                  "Return new Keyoint[0] - empty array of Keypoints.");
+                return new Keypoint[0];
             }
 
-            // Is the input encoded with 32 bit floating point precision ?
+            int inputWidth  = inputImage.Cols;
+            int inputHeigth = inputImage.Rows;
             if (inputImage.Depth != Emgu.CV.CvEnum.DepthType.Cv32F)
             {
                 inputImage.ConvertTo(inputImage, Emgu.CV.CvEnum.DepthType.Cv32F);
@@ -267,27 +404,39 @@ namespace EmguTF_pose
                 {
                     Console.WriteLine("ERROR:");
                     Console.WriteLine("Unable to invoke interpreter in DeepNetworkLite.");
-                    return new Point[0];
+                    return new Keypoint[0];
                 }
             }
 
-            // 1- Converts 3D tensors to Emgu.CV.Mat - 9 is the resolution here
-            Emgu.CV.Mat heatmaps_mat = new Emgu.CV.Mat();
-            Emgu.CV.Mat offsets_mat  = new Emgu.CV.Mat();
+            // 1- Converts 3D tensors to Emgu.CV.Mat
+            Emgu.CV.Mat heatmaps_mat              = new Emgu.CV.Mat();
+            Emgu.CV.Mat offsets_mat               = new Emgu.CV.Mat();
+            Emgu.CV.Mat displacement_forward_mat  = new Emgu.CV.Mat();
+            Emgu.CV.Mat displacement_backward_mat = new Emgu.CV.Mat();
             try
             {
-                heatmaps_mat = new Mat(m_outputTensors[0].Dims[1], m_outputTensors[0].Dims[2], 
-                                       DepthType.Cv32F, m_numberOfKeypoints, m_outputTensors[0].DataPointer,
-                                       sizeof(float) * 3 * m_outputTensors[0].Dims[1]);
-                offsets_mat = new Mat(m_outputTensors[1].Dims[1], m_outputTensors[1].Dims[2],
-                                       DepthType.Cv32F, m_numberOfKeypoints*2, m_outputTensors[1].DataPointer,
-                                      sizeof(float) * 3 * m_outputTensors[1].Dims[1]);
+                heatmaps_mat = new Mat(
+                    m_outputTensors[0].Dims[1], m_outputTensors[0].Dims[2],
+                    DepthType.Cv32F, m_outputTensors[0].Dims[3], m_outputTensors[0].DataPointer,
+                    sizeof(float) * 3 * m_outputTensors[0].Dims[1]);
+                offsets_mat = new Mat(
+                    m_outputTensors[1].Dims[1], m_outputTensors[1].Dims[2],
+                    DepthType.Cv32F, m_outputTensors[1].Dims[3], m_outputTensors[1].DataPointer,
+                    sizeof(float) * 3 * m_outputTensors[1].Dims[1]);
+                displacement_forward_mat = new Mat(
+                    m_outputTensors[2].Dims[1], m_outputTensors[2].Dims[2],
+                    DepthType.Cv32F, m_outputTensors[2].Dims[3], m_outputTensors[2].DataPointer,
+                    sizeof(float) * 3 * m_outputTensors[2].Dims[1]);
+                displacement_backward_mat = new Mat(
+                    m_outputTensors[3].Dims[1], m_outputTensors[3].Dims[2],
+                    DepthType.Cv32F, m_outputTensors[3].Dims[3], m_outputTensors[3].DataPointer,
+                    sizeof(float) * 3 * m_outputTensors[3].Dims[1]);
             }
             catch
             {
                 Console.WriteLine("Unable to read heatmaps or offsets in PoseNetEstimator. " +
-                                  "Return new Point[0] - empty array of Points.");
-                return new Point[0];
+                                  "Return new Keyoint[0] - empty array of Keypoints.");
+                return new Keypoint[0];
             }
 
             // 2 - Split channels and store them in vector of mat
@@ -295,52 +444,338 @@ namespace EmguTF_pose
             {
                 Emgu.CV.CvInvoke.Split(heatmaps_mat, m_heatmapsChannels);
                 Emgu.CV.CvInvoke.Split(offsets_mat,m_offsetsChannels);
+                Emgu.CV.CvInvoke.Split(displacement_forward_mat, m_forwardDisplacementChannels);
+                Emgu.CV.CvInvoke.Split(displacement_backward_mat, m_backwardDisplacementChannels);
             }
             else
             {
-                return new Point[0];
+                Console.WriteLine("Empty heatmaps_mat or offsets_mat in Inference from PoseNetEstimator. " +
+                                  "Return new Keyoint[0] - empty array of Keypoints.");
+                return new Keypoint[0];
             }
 
-            // 3 - Get max prob on heatmap and apply offset :D
+            // 3 -Estimate body pose
+            //singleBodyPoseEstimation();
+            improveSingleBodyPoseEstimation();
+            rescaleKeypointsPosition(inputWidth, inputHeigth);
+
+            return m_keypoints;
+        }
+
+        //ToDo
+        void singleBodyPoseEstimation()
+        {
             try
             {
-                for (var i = 0; i < m_numberOfKeypoints; i++) // 11 and not 17 to keep only upper body keypoints - todo: remove hardcoded
+                for (int keypointIndex = (int)BodyParts.NOSE; 
+                         keypointIndex <= (int)BodyParts.RIGHT_WRIST; // only uper body parts 
+                         keypointIndex++) 
                 {
-                    var maxLoc = new Point();
-                    var minLoc = new Point();
-                    double min = 0;
-                    double max = 0;
-
-                    Emgu.CV.CvInvoke.MinMaxLoc(m_heatmapsChannels[i], ref min, ref max, ref minLoc, ref maxLoc);
-
-                    if (sigmoid(max) > 0.05) // 0.05 is a fixed probability threshold between 0 and 1 - todo: remove hardcoded
-                    {
-                        Image<Gray, Single> offset_y = m_offsetsChannels[i].ToImage<Gray, Single>();
-                        Image<Gray, Single> offset_x = m_offsetsChannels[i + 17].ToImage<Gray, Single>();
-                        var y = offset_y[maxLoc.Y, maxLoc.X];
-                        var x = offset_x[maxLoc.Y, maxLoc.X];
-
-                        int output_stride = (this.m_interpreter.Inputs[0].Dims[1] - 1) / (this.m_interpreter.Outputs[0].Dims[1] - 1);
-                        m_keypoints[i] = new Point((maxLoc.X * output_stride + (int)x.Intensity), 
-                                                   (maxLoc.Y * output_stride + (int)y.Intensity));
-                    }
-                    else
-                    {
-                        m_keypoints[i] = new Point(-1, -1);
-                    }
+                    retrieveKeypointPositionFromHeatmap(keypointIndex);
                 }
             }
             catch
             {
                 Console.WriteLine("Error in PoseNetEstimator Inference : unable to decode heatmaps and offsets. " +
-                                  "Return new Point[0] - empty array of points.");
-                return new Point[0];
+                                  "Return void from singleBodyPose in PoseNetEstimator.");
+
+                return ;
+            }
+        }
+
+        //ToDo
+        void improveSingleBodyPoseEstimation(int root = (int)BodyParts.NOSE)
+        {
+            foreach(var kpt in m_keypoints)
+            {
+                kpt.reset();
             }
 
-            // Dispose
-            heatmaps_mat.Dispose();
-            offsets_mat.Dispose();
-            return m_keypoints;
+            if (root >= (int)BodyParts.NOSE & root < (int)BodyParts.NUMBER_MAX)
+            {
+                retrieveKeypointPositionFromHeatmap(keypointIndex: root, 
+                                                    inInputTensorDim: true,
+                                                    withOffset: true);
+
+
+                // Iterate over the linear chain of parent->children
+                // Decode the part positions upwards in the tree, following the backward
+                // displacements.
+                for (var edge = 0; edge < m_keypointsChain.Length - 1; edge++)
+                {
+                    var sourceKeypointId = m_keypointsChain[edge][0];
+                    var targetKeypointId = m_keypointsChain[edge][1];
+                    if (m_keypoints[targetKeypointId].position == new Point(-1, -1))
+                    {
+                        // With position_raw
+                        int[] displacement = getForwardDisplacement(edge, m_keypoints[sourceKeypointId].position_raw);
+                        int[] source_offset = getOffset(sourceKeypointId, m_keypoints[sourceKeypointId].position_raw);
+                        int output_stride = (m_inputTensor.Dims[1] - 1) / (m_outputTensors[0].Dims[1] - 1);
+
+                        // Position is based on source position, offset and displacement all in inputscale.
+                        // Raw position rescale the target position.
+                        m_keypoints[targetKeypointId].position =
+                            new Point(m_keypoints[sourceKeypointId].position.X - source_offset[0] + displacement[0],
+                                      m_keypoints[sourceKeypointId].position.Y - source_offset[1] + displacement[1]);
+                        m_keypoints[targetKeypointId].position_raw =
+                            new Point((m_keypoints[targetKeypointId].position.X) / output_stride,
+                                      (m_keypoints[targetKeypointId].position.Y) / output_stride);
+
+                        LocalMax(targetKeypointId, true, true);
+                    }
+                }
+                for (var edge = m_keypointsChain.Length - 1; edge >= 0; edge--)
+                {
+                    var sourceKeypointId = m_keypointsChain[edge][1];
+                    var targetKeypointId = m_keypointsChain[edge][0];
+                    if (m_keypoints[targetKeypointId].position == new Point(-1, -1))
+                    {
+                        // With position_raw
+                        int[] displacement = getBackwardDisplacement(edge, m_keypoints[sourceKeypointId].position_raw);
+                        int[] source_offset = getOffset(sourceKeypointId,
+                                                        m_keypoints[sourceKeypointId].position_raw);
+                        int output_stride = (m_inputTensor.Dims[1] - 1) / (m_outputTensors[0].Dims[1] - 1);
+
+                        // Position is based on source position, offset and displacement all in inputscale.
+                        // Raw position rescale the target position.
+                        m_keypoints[targetKeypointId].position =
+                            new Point(m_keypoints[sourceKeypointId].position.X - source_offset[0] + displacement[0],
+                                      m_keypoints[sourceKeypointId].position.Y - source_offset[1] + displacement[1]);
+                        m_keypoints[targetKeypointId].position_raw =
+                            new Point((m_keypoints[targetKeypointId].position.X) / output_stride,
+                                      (m_keypoints[targetKeypointId].position.Y) / output_stride);
+
+                        LocalMax(targetKeypointId, true, true);
+                    }
+                }
+
+
+            }
+        }
+
+        //ToDo
+        void retrieveKeypointPositionFromHeatmap(int keypointIndex, bool inInputTensorDim = true, bool withOffset = true)
+        {
+            // Casual check to warn the user about misuse
+            if (withOffset & !inInputTensorDim)
+            {
+                Console.WriteLine("/!\\ Warning in retrievekeypointPosition from PoseNet Estimator." +
+                                  " The withOffset flag set to true while inInputTensorDim flag is false. " +
+                                  " Offset will not be applied (offset values are in input tensor dimensions). ");
+            }
+
+            // Do not consider output of body parts indexes to avoid out of memory access
+            if (keypointIndex >= (int)BodyParts.NOSE & keypointIndex < (int)BodyParts.NUMBER_MAX) //valid
+            {
+                // Find point with highest probability to be a body part in the corresponding heatmap channel
+                var maxLoc = new Point();
+                var minLoc = new Point();
+                double min = 0;
+                double max = 0;
+                Emgu.CV.CvInvoke.MinMaxLoc(m_heatmapsChannels[keypointIndex], ref min, ref max, ref minLoc, ref maxLoc);
+
+                // Update score, body part and location. 
+                m_keypoints[keypointIndex].score = (float)sigmoid(max); // We apply sigmoid on the max value to get [0...1] probability score.
+                m_keypoints[keypointIndex].bodyPart = keypointIndex;
+                if (m_keypoints[keypointIndex].score > 0.05) // 0.05 is a fixed probability threshold between 0 and 1 - todo: remove hardcoded
+                {
+                    // Retrieve keypoint position and offset.
+                    m_keypoints[keypointIndex].position = maxLoc;
+                    m_keypoints[keypointIndex].position_raw = maxLoc;
+
+                    // Scale to input dim using output_stride, then offset using offset values
+                    if (inInputTensorDim)
+                    {
+                        int output_stride = (m_inputTensor.Dims[1] - 1) / (m_outputTensors[0].Dims[1] - 1);
+                        m_keypoints[keypointIndex].position.X *= output_stride;
+                        m_keypoints[keypointIndex].position.Y *= output_stride;
+
+                        if (withOffset)
+                        {
+                            int[] offset = getOffset(keypointIndex, m_keypoints[keypointIndex].position_raw);
+                            m_keypoints[keypointIndex].position.X += offset[0];
+                            m_keypoints[keypointIndex].position.Y += offset[1];
+                        }
+                    }
+
+                }
+                else
+                {
+                    m_keypoints[keypointIndex].position = new Point(-1, -1);
+                }
+            }
+        }
+
+        // ToDo
+        private void LocalMax(int keypointIndex, bool inInputTensorDim = true, bool withOffset = true)
+        {
+            // Casual check to warn the user about misuse
+            if (withOffset & !inInputTensorDim)
+            {
+                Console.WriteLine("/!\\ Warning in retrievekeypointPosition from PoseNet Estimator." +
+                                  " The withOffset flag set to true while inInputTensorDim flag is false. " +
+                                  " Offset will not be applied (offset values are in input tensor dimensions). ");
+            }
+
+            // Do not consider output of body parts indexes to avoid out of memory access
+            if (keypointIndex >= (int)BodyParts.NOSE & keypointIndex < (int)BodyParts.NUMBER_MAX) //valid
+            {
+                var maxLoc = new Point();
+                float max = -1;
+
+                // Find point with highest probability to be a body part in the corresponding heatmap channel
+                for (int i = -2; i <= 2; i++)
+                {
+                    for (int j = -2; j <= 2; j++)
+                    {
+                        if (m_keypoints[keypointIndex].position_raw.Y + i > 0 & m_keypoints[keypointIndex].position_raw.Y + i < m_heatmapsChannels[keypointIndex].Rows &
+                           m_keypoints[keypointIndex].position_raw.X + j > 0 & m_keypoints[keypointIndex].position_raw.X + j < m_heatmapsChannels[keypointIndex].Cols)
+                        {
+                            var val = m_heatmapsChannels[keypointIndex].GetValue(m_keypoints[keypointIndex].position_raw.Y + i,
+                                                                                 m_keypoints[keypointIndex].position_raw.X + j);
+                            if (val > max)
+                            {
+                                max = val;
+                                maxLoc.X = m_keypoints[keypointIndex].position_raw.X + j;
+                                maxLoc.Y = m_keypoints[keypointIndex].position_raw.Y + i;
+                            }
+                        }
+                    }
+                }
+                // Update score, body part and location. 
+                m_keypoints[keypointIndex].score = (float)sigmoid(max); // We apply sigmoid on the max value to get [0...1] probability score.
+                m_keypoints[keypointIndex].bodyPart = keypointIndex;
+                if (m_keypoints[keypointIndex].score > 0)
+                {
+                    m_keypoints[keypointIndex].position = maxLoc;
+                    m_keypoints[keypointIndex].position_raw = maxLoc;
+                }
+                else
+                {
+                    m_keypoints[keypointIndex].reset();
+                }
+
+                // Scale to input dim using output_stride, then offset using offset values
+                if (inInputTensorDim & maxLoc.X != -1 & maxLoc.Y != -1)
+                {
+                    int output_stride = (m_inputTensor.Dims[1] - 1) / (m_outputTensors[0].Dims[1] - 1);
+                    m_keypoints[keypointIndex].position.X *= output_stride;
+                    m_keypoints[keypointIndex].position.Y *= output_stride;
+
+                    if (withOffset)
+                    {
+                        int[] offset = getOffset(keypointIndex, m_keypoints[keypointIndex].position_raw);
+                        m_keypoints[keypointIndex].position.X += offset[0];
+                        m_keypoints[keypointIndex].position.Y += offset[1];
+                    }
+                }
+            }
+        }
+
+        //ToDo
+        private int[] getOffset(int keypointIndex, Point positionInOutputDim)
+        {
+            if (positionInOutputDim.Y < m_offsetsChannels[keypointIndex].Cols & positionInOutputDim.Y > 0 &
+                positionInOutputDim.X < m_offsetsChannels[keypointIndex].Rows & positionInOutputDim.X > 0)
+            {
+                Image<Gray, Single> offset_y = m_offsetsChannels[keypointIndex].ToImage<Gray, Single>();
+                Image<Gray, Single> offset_x = m_offsetsChannels[keypointIndex + m_numberOfKeypoints].ToImage<Gray, Single>();
+                var y = offset_y[positionInOutputDim.Y, positionInOutputDim.X];
+                var x = offset_x[positionInOutputDim.Y, positionInOutputDim.X];
+                return new int[2] { (int)x.Intensity, (int)y.Intensity };
+            }
+            return new int[2] { 0, 0 };
+        }
+
+        /// <summary>
+        /// Return forward displacement vector in <see cref="m_outputTensors"/> dimension.
+        /// </summary>
+        /// <param name="keypointIndex">ToDo</param>
+        /// <param name="positionInOutputDim">ToDo</param>
+        /// <returns></returns>
+        private int[] getForwardDisplacement(int edgeIndex, Point positionInOutputDim)
+        {
+            if (positionInOutputDim.Y < m_offsetsChannels[edgeIndex].Cols & positionInOutputDim.Y > 0 &
+                positionInOutputDim.X < m_offsetsChannels[edgeIndex].Rows & positionInOutputDim.X > 0)
+            {
+                Image<Gray, Single> displacement_y = m_forwardDisplacementChannels[edgeIndex].ToImage<Gray, Single>();
+                Image<Gray, Single> displacement_x = m_forwardDisplacementChannels[edgeIndex + (m_numberOfKeypoints - 1)].ToImage<Gray, Single>();
+                var y = displacement_y[positionInOutputDim.Y, positionInOutputDim.X];
+                var x = displacement_x[positionInOutputDim.Y, positionInOutputDim.X];
+                return new int[2] { (int)x.Intensity, (int)y.Intensity };
+            }
+            return new int[2] { 0, 0 };
+        }
+
+        /// <summary>
+        /// Return backward displacement vector in <see cref="m_outputTensors"/> dimension.
+        /// </summary>
+        /// <param name="keypointIndex">ToDo</param>
+        /// <param name="positionInOutputDim">ToDo</param>
+        /// <returns></returns>
+        private int[] getBackwardDisplacement(int edgeIndex, Point positionInOutputDim)
+        {
+            if (positionInOutputDim.Y < m_offsetsChannels[edgeIndex].Cols & positionInOutputDim.Y > 0 &
+                positionInOutputDim.X < m_offsetsChannels[edgeIndex].Rows & positionInOutputDim.X > 0)
+            {
+                Image<Gray, Single> displacement_y = m_backwardDisplacementChannels[edgeIndex].ToImage<Gray, Single>();
+                Image<Gray, Single> displacement_x = m_backwardDisplacementChannels[edgeIndex + (m_numberOfKeypoints - 1)].ToImage<Gray, Single>();
+                var y = displacement_y[positionInOutputDim.Y, positionInOutputDim.X];
+                var x = displacement_x[positionInOutputDim.Y, positionInOutputDim.X];
+                return new int[2] { (int)x.Intensity, (int)y.Intensity };
+            }
+            return new int[2] { 0, 0 };
+        }
+
+        /// <summary>
+        /// Rescale keypoints position from <see cref="m_inputTensor"/> dimensions to
+        /// another spatial dimension (e.g., input image dimension before it being resize
+        /// to match inputTensor dimension). Following formulas are used:
+        /// newX = (currentX / currentWidth) * newWidth
+        /// newY = (currentY / currentHeight) * newHeight
+        /// HINT: Very useful for display purpose.
+        /// </summary>
+        /// <param name="newWidth">Output dimension width</param>
+        /// <param name="newHeigth">Output dimension heigth</param>
+        void rescaleKeypointsPosition(int newWidth, int newHeigth)
+        {
+            foreach(var kpt in m_keypoints)
+            {
+                if (kpt.position.X != -1 & kpt.position.Y != -1 & newWidth > 0 & newHeigth > 0) //valid
+                {
+                    kpt.position.X = kpt.position.X * newWidth / m_inputTensor.Dims[2];
+                    kpt.position.Y = kpt.position.Y * newHeigth / m_inputTensor.Dims[1];
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rescale a keypoint position from <see cref="m_inputTensor"/> dimensions to
+        /// another spatial dimension (e.g., input image dimension before it being resize
+        /// to match inputTensor dimension). Following formulas are used:
+        /// newX = (currentX / currentWidth) * newWidth
+        /// newY = (currentY / currentHeight) * newHeight
+        /// HINT: Very useful for display purpose.
+        /// </summary>
+        /// <param name="keypointIndex">Index of the keypoint in <see cref="m_keypoints"/>. This value should
+        /// be higher or equal to <see cref="BodyParts.NOSE"/> and strickly lower than <see cref="BodyParts.NUMBER_MAX"/></param>
+        /// <param name="newWidth">Output dimension width</param>
+        /// <param name="newHeigth">Output dimension heigth</param>
+        void rescaleKeypointsPosition(int keypointIndex, int newWidth, int newHeigth)
+        {
+            if (keypointIndex >= (int)BodyParts.NOSE &
+               keypointIndex < (int)BodyParts.NUMBER_MAX) //valid
+            {
+                if (m_keypoints[keypointIndex].position.X != -1 &
+                    m_keypoints[keypointIndex].position.Y != -1 &
+                    newWidth > 0 & newHeigth > 0) //valid
+                {
+                    m_keypoints[keypointIndex].position.X =
+                        m_keypoints[keypointIndex].position.X * newWidth / m_inputTensor.Dims[2];
+                    m_keypoints[keypointIndex].position.Y =
+                        m_keypoints[keypointIndex].position.Y * newHeigth / m_inputTensor.Dims[1];
+                }
+            }
         }
     }
 }

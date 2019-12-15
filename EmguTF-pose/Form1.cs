@@ -82,7 +82,7 @@ namespace EmguTF_pose
             m_Webcam.ImageGrabbed += new EventHandler(Process); // event based
 
             // Pose estimator - to do remove hardcoded things !
-            m_posenet = new PoseNetEstimator(frozenModelPath: "posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite",
+            m_posenet = new PoseNetEstimator(frozenModelPath: "models/posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite",
                                              numberOfThreads: 4);
 
         }
@@ -116,6 +116,7 @@ namespace EmguTF_pose
 
                     // Display keypoints and frame in imageview
                     ShowKeypoints();
+                    ShowJoints();
                     ShowFrame();
 
                 }
@@ -149,25 +150,52 @@ namespace EmguTF_pose
         }
 
         /// <summary>
-        /// Show<see cref="m_keypoints"/> on <see cref="m_frame"/> if keypoint is not Point(-1,-1).
+        /// Show<see cref="m_posenet.m_keypoints"/> on <see cref="m_frame"/> if keypoint is not Point(-1,-1).
         /// </summary>
         private void ShowKeypoints()
         {
             if (!m_frame.IsEmpty)
             {
                 float count = 1;
-                foreach (Point pt in m_posenet.m_keypoints) // if not empty array of points
+                foreach (Keypoint kpt in m_posenet.m_keypoints) // if not empty array of points
                 {
-                    if ((pt.X != -1) & (pt.Y != -1)) // if points are valids
+                    if (kpt != null)
                     {
-                        //newX = (currentX / currentWidth) * newWidth
-                        //newY = (currentY / currentHeight) * newHeight
-                        Emgu.CV.CvInvoke.Circle(m_frame,
-                                                new Point((int)((float)pt.X * m_frame.Width / 257),
-                                                            (int)((float)pt.Y * m_frame.Height / 257)),
-                                                3, new MCvScalar(200, 255, (int)((float)255 / count), 255), 2);
+                        if ((kpt.position.X != -1) & (kpt.position.Y != -1)) // if points are valids
+                        {
+                            Emgu.CV.CvInvoke.Circle(m_frame, kpt.position,
+                                                    3, new MCvScalar(200, 255, (int)((float)255 / count), 255), 2);
+                        }
+                        count++;
                     }
-                    count++;
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Show<see cref="m_posenet.m_keypointsJoints"/> on <see cref="m_frame"/> if none of the 2 keypoints linked by
+        /// a joint is equal to Point(-1,-1).
+        /// </summary>
+        private void ShowJoints()
+        {
+            if (!m_frame.IsEmpty)
+            {
+                foreach (int[] joint in m_posenet.m_keypointsJoints) // if not empty array of points
+                {
+                    if (m_posenet.m_keypoints[joint[0]] != null & m_posenet.m_keypoints[joint[1]] != null)
+                    {
+                        if ((m_posenet.m_keypoints[joint[0]].position != new Point(-1, -1)) &
+                            (m_posenet.m_keypoints[joint[0]].position != new Point(0, 0)) &
+                            (m_posenet.m_keypoints[joint[1]].position != new Point(-1, -1))  &
+                            (m_posenet.m_keypoints[joint[1]].position != new Point(0, 0))) // if points are valids
+                        {
+                            Emgu.CV.CvInvoke.Line(m_frame,
+                                                  m_posenet.m_keypoints[joint[0]].position,
+                                                  m_posenet.m_keypoints[joint[1]].position,
+                                                  new MCvScalar(200, 255, 255, 255), 2);
+                        }
+                    }
                 }
             }
         }
@@ -182,7 +210,7 @@ namespace EmguTF_pose
                 CvInvoke.Resize(m_frame, m_frame, new Size(imageBox.Size.Width, imageBox.Size.Height));
                 Emgu.CV.CvInvoke.Flip(m_frame, m_frame, FlipType.Horizontal);
                 imageBox.Image = m_frame;
-                Emgu.CV.CvInvoke.WaitKey(10); //wait a few clock cycles
+                Emgu.CV.CvInvoke.WaitKey(1); //wait a few clock cycles
             }
         }
     }
