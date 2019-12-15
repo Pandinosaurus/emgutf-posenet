@@ -20,7 +20,7 @@ Keep in mind this work is a working prototype, that may contain bugs.
 2. Clone this github repository: ``` git clone https://github.com/Pandinosaurus/EmguTF-PoseNet/ ```. All dll should be already included. We will assume you have clone the repository in ```<pathto>/EmguTF-PoseNet```, where ```<pathto>``` is your current location and ```EmguTF-PoseNet``` is the downloaded repository. 
 3. Go into the EmguTF-PoseNet directory, and double click on the .sln file (```EmguTF-pose.sln```). Visual studio should open the solution.
 4. Select x64 as the target plateform in the top panel. It is located near the "Debug"/"Release" combobox.
-5. Open the ```Form1.cs``` file, and modify the line 103 to make the ```frozenModelPath``` to match yours. It should be ```<pathto>/EmguTF-PoseNet/models/```.
+5. Open the ```Form1.cs``` file, and modify the ```frozenModelPath``` to match yours. It should be ```<pathto>/EmguTF-PoseNet/models/```. We recommend copying the models file in ```<pathto>/EmguTF-PoseNet/EmguTF-Pose/bin/x64/models``` since it has not been automated yet.
 6. Clean the project: right click on EmguTF-pose in the solution explorer -> clean
 7. Regenerate the project: right click on EmguTF-pose in the solution explorer -> regenerate 
 8. You may now be able to launch the application clicking on the green arrow in the top panel. If you encounter any bug and find solutions to them, please, feel free to share them. 
