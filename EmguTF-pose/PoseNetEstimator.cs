@@ -524,32 +524,6 @@ namespace EmguTF_pose
                         LocalMax(targetKeypointId, true, true);
                     }
                 }
-                for (var edge = m_keypointsChain.Length - 1; edge >= 0; edge--)
-                {
-                    var sourceKeypointId = m_keypointsChain[edge][1];
-                    var targetKeypointId = m_keypointsChain[edge][0];
-                    if (m_keypoints[targetKeypointId].position == new Point(-1, -1))
-                    {
-                        // With position_raw
-                        int[] displacement = getBackwardDisplacement(edge, m_keypoints[sourceKeypointId].position_raw);
-                        int[] source_offset = getOffset(sourceKeypointId,
-                                                        m_keypoints[sourceKeypointId].position_raw);
-                        int output_stride = (m_inputTensor.Dims[1] - 1) / (m_outputTensors[0].Dims[1] - 1);
-
-                        // Position is based on source position, offset and displacement all in inputscale.
-                        // Raw position rescale the target position.
-                        m_keypoints[targetKeypointId].position =
-                            new Point(m_keypoints[sourceKeypointId].position.X - source_offset[0] + displacement[0],
-                                      m_keypoints[sourceKeypointId].position.Y - source_offset[1] + displacement[1]);
-                        m_keypoints[targetKeypointId].position_raw =
-                            new Point((m_keypoints[targetKeypointId].position.X) / output_stride,
-                                      (m_keypoints[targetKeypointId].position.Y) / output_stride);
-
-                        LocalMax(targetKeypointId, true, true);
-                    }
-                }
-
-
             }
         }
 
