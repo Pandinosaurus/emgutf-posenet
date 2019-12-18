@@ -9,7 +9,7 @@ We achieve ~8-9 FPS on an intel i7-7600U @ 2.80Ghz (4 CPUs).
 Emgu.TF is rather new, and it is one of the rare libraries providing a C# wrapper for tensorflow lite. Official exemples in Emgu.TF demonstrate how to classify and detect objects on static images. In this work, the focus is put on human pose estimation from a webcam flow, which comes with its own difficulties. 
 
 ## Network
-We will reuse the PoseNet weights provided by the tensorflow team and optimized for fast inference with tensorflow lite. 
+We will reuse the PoseNet weights provided by the tensorflow team and optimized for fast inference with tensorflow lite. This work difficulties are not about loading or using the model, but about how to interpret the network outputs with Emgu.TF and Emgu.CV. 
 
 -- Section ToDo ---
 
