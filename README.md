@@ -1,6 +1,6 @@
 # EmguTF-PoseNet
 Deep pose estimation in C# using tensorflow lite through Emgu.TF on CPU. <br>
-We achieve ~8-9 FPS on an intel i7-7600U @ 2.80Ghz (4 CPUs).
+We achieve ~8-9 FPS on an intel i7-7600U @ 2.80Ghz (4 CPUs) using laptop integrated webcam.
 <br> <br>
 ![alt text](/docs/demo.gif)
 <br>
